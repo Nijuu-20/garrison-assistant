@@ -1,0 +1,860 @@
+{
+  "source_name": "卫戍协议_ban推荐工具.html",
+  "source_sha256": "f97eb6433bf455551cadb9c33fdbf9f6bf304a436dc4b02a5ffe30c9d84c6563",
+  "rule": "if primary core exists: primary core decides; otherwise: nonempty additional covenants all banned",
+  "correction": {
+    "source": "user live-game observation, 2026-11-13",
+    "case": "乌萨斯可用、突袭被禁时仍可获取赫拉格",
+    "scope": "主核心优先，替代原网页 excluded() 的 OR 判断；保留原盟约归属映射"
+  },
+  "big": [
+    "乌萨斯",
+    "卡西米尔",
+    "维多利亚",
+    "谢拉格",
+    "阿戈尔",
+    "萨尔贡",
+    "伊比利亚",
+    "莱塔尼亚",
+    "叙拉古",
+    "炎"
+  ],
+  "small": [
+    "奥术",
+    "坚守",
+    "精准",
+    "灵巧",
+    "聚合",
+    "迅捷",
+    "不屈",
+    "突袭",
+    "奇迹",
+    "助力",
+    "远见",
+    "协防干员",
+    "投资人",
+    "调和"
+  ],
+  "operators": {
+    "折桠": {
+      "core": "乌萨斯",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "烈夏": {
+      "core": "乌萨斯",
+      "additional": []
+    },
+    "摆渡人": {
+      "core": "",
+      "additional": [
+        "坚守",
+        "不屈"
+      ]
+    },
+    "幽灵鲨": {
+      "core": "阿戈尔",
+      "additional": []
+    },
+    "慕斯": {
+      "core": "维多利亚",
+      "additional": []
+    },
+    "灰喉": {
+      "core": "",
+      "additional": [
+        "精准"
+      ]
+    },
+    "卡达": {
+      "core": "",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "夏栎": {
+      "core": "",
+      "additional": [
+        "助力"
+      ]
+    },
+    "艾丝黛尔": {
+      "core": "萨尔贡",
+      "additional": [
+        "独行"
+      ]
+    },
+    "野鬃": {
+      "core": "卡西米尔",
+      "additional": [
+        "助力"
+      ]
+    },
+    "角峰": {
+      "core": "谢拉格",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "深靛": {
+      "core": "伊比利亚",
+      "additional": []
+    },
+    "杰克": {
+      "core": "",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "霜叶": {
+      "core": "",
+      "additional": [
+        "灵巧"
+      ]
+    },
+    "褐果": {
+      "core": "",
+      "additional": [
+        "聚合"
+      ]
+    },
+    "陨星": {
+      "core": "",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "地灵": {
+      "core": "莱塔尼亚",
+      "additional": [
+        "独行"
+      ]
+    },
+    "拜松": {
+      "core": "炎",
+      "additional": []
+    },
+    "拉普兰德": {
+      "core": "叙拉古",
+      "additional": []
+    },
+    "真理": {
+      "core": "乌萨斯",
+      "additional": []
+    },
+    "砾": {
+      "core": "卡西米尔",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "宴": {
+      "core": "",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "折光": {
+      "core": "莱塔尼亚",
+      "additional": []
+    },
+    "泡泡": {
+      "core": "萨尔贡",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "雪猎": {
+      "core": "谢拉格",
+      "additional": [
+        "精准"
+      ]
+    },
+    "复奏": {
+      "core": "叙拉古",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "Miss.Christine": {
+      "core": "维多利亚",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "云迹": {
+      "core": "",
+      "additional": [
+        "灵巧",
+        "奇迹"
+      ]
+    },
+    "蓝毒": {
+      "core": "伊比利亚",
+      "additional": []
+    },
+    "莎草": {
+      "core": "萨尔贡",
+      "additional": [
+        "聚合"
+      ]
+    },
+    "奥斯塔": {
+      "core": "叙拉古",
+      "additional": []
+    },
+    "哈洛德": {
+      "core": "维多利亚",
+      "additional": []
+    },
+    "蛇屠箱": {
+      "core": "",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "波登可": {
+      "core": "",
+      "additional": [
+        "迅捷",
+        "聚合"
+      ]
+    },
+    "锡人": {
+      "core": "",
+      "additional": [
+        "投资人"
+      ]
+    },
+    "渡桥": {
+      "core": "",
+      "additional": [
+        "远见"
+      ]
+    },
+    "星极": {
+      "core": "",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "星源": {
+      "core": "",
+      "additional": [
+        "助力"
+      ]
+    },
+    "承曦格雷伊": {
+      "core": "",
+      "additional": [
+        "精准",
+        "灵巧"
+      ]
+    },
+    "矩": {
+      "core": "炎",
+      "additional": []
+    },
+    "瑰盐": {
+      "core": "伊比利亚",
+      "additional": [
+        "聚合"
+      ]
+    },
+    "铸铁": {
+      "core": "",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "安哲拉": {
+      "core": "阿戈尔",
+      "additional": [
+        "助力"
+      ]
+    },
+    "奥尔佳": {
+      "core": "乌萨斯",
+      "additional": [
+        "灵巧"
+      ]
+    },
+    "乌啾": {
+      "core": "乌萨斯",
+      "additional": [
+        "聚合"
+      ]
+    },
+    "海沫": {
+      "core": "伊比利亚",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "风丸": {
+      "core": "",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "车尔尼": {
+      "core": "莱塔尼亚",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "旅骨": {
+      "core": "伊比利亚",
+      "additional": [
+        "精准"
+      ]
+    },
+    "极光": {
+      "core": "谢拉格",
+      "additional": []
+    },
+    "初雪": {
+      "core": "谢拉格",
+      "additional": [
+        "协防干员"
+      ]
+    },
+    "斯卡蒂": {
+      "core": "阿戈尔",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "卡涅利安": {
+      "core": "萨尔贡",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "风絮": {
+      "core": "炎",
+      "additional": [
+        "聚合"
+      ]
+    },
+    "耶拉": {
+      "core": "谢拉格",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "深巡": {
+      "core": "阿戈尔",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "瑕光": {
+      "core": "卡西米尔",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "忍冬": {
+      "core": "叙拉古",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "水灯心": {
+      "core": "维多利亚",
+      "additional": [
+        "灵巧",
+        "独行"
+      ]
+    },
+    "吉星": {
+      "core": "",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "罗比菈塔": {
+      "core": "",
+      "additional": [
+        "坚守",
+        "助力"
+      ]
+    },
+    "历阵锐枪芬": {
+      "core": "卡西米尔",
+      "additional": [
+        "远见"
+      ]
+    },
+    "伺夜": {
+      "core": "叙拉古",
+      "additional": [
+        "精准"
+      ]
+    },
+    "空弦": {
+      "core": "",
+      "additional": [
+        "精准",
+        "远见"
+      ]
+    },
+    "伊桑": {
+      "core": "",
+      "additional": [
+        "突袭",
+        "奥术"
+      ]
+    },
+    "乌有": {
+      "core": "炎",
+      "additional": []
+    },
+    "凯瑟琳": {
+      "core": "维多利亚",
+      "additional": [
+        "远见"
+      ]
+    },
+    "至简": {
+      "core": "萨尔贡",
+      "additional": []
+    },
+    "青枳": {
+      "core": "",
+      "additional": [
+        "迅捷",
+        "坚守"
+      ]
+    },
+    "维伊": {
+      "core": "乌萨斯",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "赫拉格": {
+      "core": "乌萨斯",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "森蚺": {
+      "core": "萨尔贡",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "斥罪": {
+      "core": "叙拉古",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "归溟幽灵鲨": {
+      "core": "阿戈尔",
+      "additional": [
+        "不屈"
+      ]
+    },
+    "黑键": {
+      "core": "莱塔尼亚",
+      "additional": [
+        "精准"
+      ]
+    },
+    "温蒂": {
+      "core": "伊比利亚",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "余": {
+      "core": "炎",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "灵知": {
+      "core": "谢拉格",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "水月": {
+      "core": "阿戈尔",
+      "additional": [
+        "灵巧"
+      ]
+    },
+    "艾雅法拉": {
+      "core": "莱塔尼亚",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "流明": {
+      "core": "伊比利亚",
+      "additional": [
+        "聚合"
+      ]
+    },
+    "远牙": {
+      "core": "卡西米尔",
+      "additional": [
+        "精准"
+      ]
+    },
+    "玛恩纳": {
+      "core": "卡西米尔",
+      "additional": []
+    },
+    "白铁": {
+      "core": "维多利亚",
+      "additional": [
+        "助力"
+      ]
+    },
+    "W": {
+      "core": "",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "山": {
+      "core": "",
+      "additional": [
+        "投资人"
+      ]
+    },
+    "赫德雷": {
+      "core": "",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "仇白": {
+      "core": "炎",
+      "additional": [
+        "灵巧"
+      ]
+    },
+    "涤火杰西卡": {
+      "core": "维多利亚",
+      "additional": [
+        "坚守"
+      ]
+    },
+    "霍尔海雅": {
+      "core": "",
+      "additional": [
+        "精准",
+        "奥术"
+      ]
+    },
+    "淬羽赫默": {
+      "core": "",
+      "additional": [
+        "助力"
+      ]
+    },
+    "夜莺": {
+      "core": "",
+      "additional": [
+        "协防干员",
+        "聚合"
+      ]
+    },
+    "异客": {
+      "core": "萨尔贡",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "安洁莉娜": {
+      "core": "叙拉古",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "寒檀": {
+      "core": "",
+      "additional": [
+        "远见"
+      ]
+    },
+    "华法琳": {
+      "core": "",
+      "additional": [
+        "灵巧",
+        "聚合"
+      ]
+    },
+    "冻河": {
+      "core": "乌萨斯",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "怒潮凛冬": {
+      "core": "乌萨斯",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "隐德来希": {
+      "core": "",
+      "additional": [
+        "灵巧",
+        "不屈"
+      ]
+    },
+    "纯烬艾雅法拉": {
+      "core": "莱塔尼亚",
+      "additional": [
+        "远见",
+        "聚合"
+      ]
+    },
+    "艾丽妮": {
+      "core": "伊比利亚",
+      "additional": []
+    },
+    "黍": {
+      "core": "炎",
+      "additional": [
+        "远见"
+      ]
+    },
+    "圣聆初雪": {
+      "core": "谢拉格",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "歌蕾蒂娅": {
+      "core": "阿戈尔",
+      "additional": []
+    },
+    "薇薇安娜": {
+      "core": "卡西米尔",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "棘刺": {
+      "core": "伊比利亚",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "佩佩": {
+      "core": "萨尔贡",
+      "additional": [
+        "灵巧"
+      ]
+    },
+    "凛御银灰": {
+      "core": "谢拉格",
+      "additional": [
+        "灵巧",
+        "投资人"
+      ]
+    },
+    "乌尔比安": {
+      "core": "阿戈尔",
+      "additional": []
+    },
+    "铃兰": {
+      "core": "叙拉古",
+      "additional": []
+    },
+    "贝洛内": {
+      "core": "叙拉古",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "迷迭香": {
+      "core": "",
+      "additional": [
+        "精准",
+        "助力"
+      ]
+    },
+    "塞雷娅": {
+      "core": "",
+      "additional": [
+        "坚守",
+        "协防干员"
+      ]
+    },
+    "老鲤": {
+      "core": "炎",
+      "additional": [
+        "投资人"
+      ]
+    },
+    "可露希尔": {
+      "core": "",
+      "additional": [
+        "投资人"
+      ]
+    },
+    "焰尾": {
+      "core": "卡西米尔",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "维娜·维多利亚": {
+      "core": "维多利亚",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "溯光星源": {
+      "core": "",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "Mon3tr": {
+      "core": "",
+      "additional": [
+        "协防干员"
+      ]
+    },
+    "鸿雪": {
+      "core": "萨尔贡",
+      "additional": [
+        "精准"
+      ]
+    },
+    "阿米娅": {
+      "core": "",
+      "additional": [
+        "奇迹"
+      ]
+    },
+    "塔露拉": {
+      "core": "乌萨斯",
+      "additional": [
+        "协防干员",
+        "奥术"
+      ]
+    },
+    "史尔特尔": {
+      "core": "",
+      "additional": [
+        "突袭",
+        "不屈"
+      ]
+    },
+    "引星棘刺": {
+      "core": "伊比利亚",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "浊心斯卡蒂": {
+      "core": "阿戈尔",
+      "additional": [
+        "聚合"
+      ]
+    },
+    "耀骑士临光": {
+      "core": "卡西米尔",
+      "additional": [
+        "突袭"
+      ]
+    },
+    "酒神": {
+      "core": "维多利亚",
+      "additional": []
+    },
+    "真言": {
+      "core": "萨尔贡",
+      "additional": []
+    },
+    "遥": {
+      "core": "",
+      "additional": [
+        "奇迹",
+        "聚合"
+      ]
+    },
+    "烛煌": {
+      "core": "炎",
+      "additional": [
+        "迅捷"
+      ]
+    },
+    "克莱门莎": {
+      "core": "阿戈尔",
+      "additional": []
+    },
+    "荒芜拉普兰德": {
+      "core": "叙拉古",
+      "additional": []
+    },
+    "逻各斯": {
+      "core": "",
+      "additional": [
+        "远见",
+        "奥术"
+      ]
+    },
+    "妮芙": {
+      "core": "",
+      "additional": [
+        "迅捷",
+        "远见"
+      ]
+    },
+    "魔王": {
+      "core": "",
+      "additional": [
+        "调和"
+      ]
+    },
+    "机械师": {
+      "core": "",
+      "additional": [
+        "坚守",
+        "协防干员"
+      ]
+    },
+    "夕": {
+      "core": "炎",
+      "additional": [
+        "奥术"
+      ]
+    },
+    "缪尔赛思": {
+      "core": "",
+      "additional": [
+        "协防干员"
+      ]
+    },
+    "锏": {
+      "core": "谢拉格",
+      "additional": []
+    },
+    "蕾缪安": {
+      "core": "",
+      "additional": [
+        "精准"
+      ]
+    },
+    "帕拉斯": {
+      "core": "",
+      "additional": [
+        "灵巧",
+        "助力"
+      ]
+    }
+  }
+}

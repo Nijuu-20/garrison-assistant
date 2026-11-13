@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/Nijuu-20/garrison-strategy-guide",
+  "visibility": "Public (verified in GitHub UI)",
+  "branch": "main",
+  "commit": "984867666227eeabcb12e41ac06936f967c5513e",
+  "published_files": 20,
+  "skill_files": 16,
+  "routes": 11,
+  "missing_internal_links": [],
+  "comparison": "18 files byte-identical; SKILL.md and agents/openai.yaml differ only by line endings/trailing whitespace; all text equivalent",
+  "downloaded_via": "built-in browser, GitHub Download ZIP"
+}

@@ -1,0 +1,26 @@
+{
+  "source_repository": "https://github.com/Nijuu-20/garrison-strategy-guide",
+  "source_commit": "984867666227eeabcb12e41ac06936f967c5513e",
+  "snapshot": "2026-11-13",
+  "local_summary": "outputs/strategy_library_2026-11-13/卫戍协议_攻略知识库.json",
+  "sha256": {
+    "knowledge.json": "f27537c53ed62ab34d5445f28bf3710987f4b4617f8e6e5e8ac56140600267b6",
+    "publication.json": "0a6f05858ed612760edaaf3fa84044df1ac64916fd365b2cc64ac3e2ef0bb48c",
+    "skill/SKILL.md": "403b5ed53af5dedaaa11ac865943a0d104901c8eb9af47341a7a28dba6c2163b",
+    "skill/agents/openai.yaml": "8b983ad697b97213027f955d08562e369fded20cc58604c3e21a668b09364150",
+    "skill/references/index.md": "d718d988494fe2b9c3aadc2294f59a9518ec8352c2e0ef7ce87571a1b4bc5687",
+    "skill/references/mechanics.md": "cff3aa9f28a6c16a631556952550c5cf1d6f538745ff30e03509409fd0d82e8f",
+    "skill/references/sources.md": "95bb9a745d17cd7f150f8480327cd44de1b2de51162370ee6adf8bb8acddd5f8",
+    "skill/references/routes/R01.md": "3ad7491416314db4e1da6b490f66d9535cba6b0ca0a27e7d6177bda5dcbfda41",
+    "skill/references/routes/R02.md": "7b0dc2d7318e705823d91afb238fb50ac2e516580ea6e896da5955b4d6729191",
+    "skill/references/routes/R03.md": "70a356892b94386c6fcaad9b63ecc227a4742586686ae3d9ecb61ddeba3715ca",
+    "skill/references/routes/R04.md": "ecb5b131e1d481783b591bd6d5211a67061cb25ac1a195fa7c5f98e7f879d403",
+    "skill/references/routes/R05.md": "22926f5e6c48fcbfb7813d03a36857b9cd901ed077078f214a220243715d27ec",
+    "skill/references/routes/R06.md": "240a40ed9ceda7b4b7e109974f3594a691e5fc433e759dbee3ffbd6bb0c19a5a",
+    "skill/references/routes/R07.md": "f8dd7703ae54438c4be2b53fd7088a24c599011ecb06302cf4fd614aaff93617",
+    "skill/references/routes/R08.md": "e8696fa4e697278648d74c43beae7d529be61f02b574b0fec620eb946be90de7",
+    "skill/references/routes/R09.md": "445519a13aa01f698c0ffad958d841485cc3eb11e9d8ee4fe7e8b20f0f55b2eb",
+    "skill/references/routes/R10.md": "78d058495470dc52812cb76d4b2fff8371b4588eeb680a56eadb33beaf8969a8",
+    "skill/references/routes/R11.md": "1bda33592641b3fe565683e8b94d550378c25c4a38c4c4d86da07e67c1e0c01a"
+  }
+}

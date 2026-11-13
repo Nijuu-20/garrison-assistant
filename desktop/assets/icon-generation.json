@@ -1,0 +1,13 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-11-13",
+  "output": "garrison-icon.png",
+  "icon_container": "garrison.ico (format conversion only, 16-256 px)",
+  "reference_page": "https://prts.wiki/w/表情套组",
+  "reference_images": [
+    "reference-happy.png",
+    "reference-thinking.png"
+  ],
+  "prompt": "Use case: logo-brand. Asset type: Windows desktop application icon and tiny 56-pixel floating launcher icon for a Chinese tactical companion app. Create ONE new icon inspired by the two reference images of the Stronghold Protocol default emotes: a cute mint-green holographic terminal face, with a chunky glowing octagonal rounded-square frame around a dark charcoal screen. The references are STYLE references, not literal edit targets. Use the same playful simple hologram-emote visual language, but create a new friendly, attentive ready-to-help expression: two very clear luminous mint eyes (one gently squinting), a small confident curved smile, and one tiny blocky glove at the lower side giving a thumbs-up. Compact centered silhouette, octagonal frame takes most of the square; exceptionally legible at 32 and 56 pixels. Clean bold pixel-inspired edges, restrained subtle scanline texture, a thin mint rim light with a soft contained green glow; charcoal interior, mint/seafoam highlights. Avoid clutter, badges, letters, Chinese characters, watermark, ornamental UI, app mockup, multiple icons, large yellow squares, anthropomorphic anime face, checkerboard background. Genuine transparent background outside the icon. The silhouette should occupy 88-92 percent of the canvas with small even transparent padding. Square high resolution PNG.",
+  "alpha_preserved": true
+}

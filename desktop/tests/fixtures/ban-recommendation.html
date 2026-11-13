@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>卫戍协议 · 开局决策台</title>
+<style>
+:root{
+  --navy:#16324f;--navy2:#1f4468;--ink:#1c2833;--muted:#6b7c8c;--line:#d8e0e7;
+  --bg:#f2f5f8;--card:#fff;--amber:#b07d12;--green:#1f7a4d;--red:#b3261e;--blue:#1d5fa8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.55 "Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
+  padding-bottom:40px}
+button{font:inherit;cursor:pointer;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:5px 10px}
+button:hover{border-color:#9db2c4}
+button.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+button.primary:hover{background:var(--navy2)}
+button.ghost{background:transparent}
+h2{font-size:15px;margin:0;font-weight:800;letter-spacing:.3px}
+.muted{color:var(--muted)}
+
+/* 顶栏 */
+header.top{background:linear-gradient(100deg,#12293f,#1f4468);color:#fff;padding:10px 18px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header.top .brand{font-size:17px;font-weight:800;letter-spacing:.5px}
+header.top .stats{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;font-size:13px}
+header.top .stats span{background:rgba(255,255,255,.13);border-radius:999px;padding:3px 11px}
+header.top .stats b{font-weight:800}
+
+/* 上阵阵容（置顶） */
+.lineup{position:sticky;top:0;z-index:40;background:#fff;border-bottom:2px solid var(--navy);
+  box-shadow:0 3px 10px rgba(16,38,58,.09)}
+.lz{max-width:1320px;margin:0 auto;padding:8px 16px 10px}
+.lz-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lz-top h2{font-size:16px}
+.lz-slot{font-size:20px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+.lz-slot.over{color:var(--red)}
+.lz-slot small{font-size:12px;color:var(--muted);font-weight:600;margin-left:2px}
+.lz-right{margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lz-eq{display:flex;align-items:center;gap:6px;background:#fbf6e8;border:1px solid #e7d6a8;
+  border-radius:8px;padding:4px 10px;font-size:13px;color:#6b5320;cursor:pointer;user-select:none}
+.lz-eq input{width:16px;height:16px;accent-color:#b07d12}
+.lz-stack{font-size:13px;color:var(--navy);background:#eef3f9;border-radius:8px;padding:4px 10px;font-weight:700}
+.lz-zone{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.lz-zone .zl{font-size:12px;color:#6b7d8f}
+.zchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;
+  padding:3px 9px;font-size:12.5px;background:#f8fafc;color:#4a5d6e;cursor:pointer;user-select:none}
+.zchip input{width:15px;height:15px;accent-color:#2b5f97}
+.zchip.on{border-color:#2b5f97;background:#eaf1fa;color:#1d4a7a}
+.zchip.sub{background:#fbf6e8;border-color:#e7d6a8;color:#6b5320}
+.zchip.sub input{accent-color:#b07d12}
+.zchip.sub.on{border-color:var(--amber);background:#fdf4e0;color:#8a6209}
+.zchip.locked{opacity:.45;cursor:not-allowed}
+.lz-covs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chip{font-size:12px;border-radius:6px;padding:2px 8px;border:1px solid var(--line);background:#f8fafc;color:#43596c}
+.chip.big.on{border-color:#2f6b3f;background:#eaf5ee;color:#1f5a37}
+.chip.big.max{border-color:var(--amber);background:#fdf4e0;color:#8a6209}
+.chip.small.on{border-color:#2b5f97;background:#eaf1fa;color:#1d4a7a}
+.chip.big.off,.chip.small.off{opacity:.55}
+.lz-ops{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;min-height:30px}
+.op{display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;
+  padding:3px 7px;background:#fbfcfd;font-size:13px}
+.op .nm{font-weight:700}
+.op .lv{font-size:11px;color:#fff;border-radius:4px;padding:0 4px;background:#8a97a3}
+.op .lv.I{background:#8a97a3}.op .lv.II{background:#3f8f5c}.op .lv.III{background:#2b6fb5}
+.op .lv.IV{background:#7a4fa8}.op .lv.V{background:#c07a14}.op .lv.VI{background:#b3261e}
+.op .ex{font-size:11px;color:#8a6209;background:#fdf4e0;border:1px solid #e7d6a8;border-radius:5px;padding:0 4px}
+.op .x{border:0;background:transparent;color:#9aa8b5;padding:0 0 0 2px;font-size:14px;line-height:1}
+.op .x:hover{color:var(--red)}
+.lz-empty{color:#9aa8b5;font-size:13px;padding:4px 0}
+
+/* 主体 */
+main{max-width:1320px;margin:14px auto;padding:0 16px;display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.p-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.p-head .cnt{margin-left:auto;font-size:13px;color:var(--muted)}
+
+/* 禁选 */
+.ban.collapsed .ban-body{display:none}
+.ban.collapsed .p-head{margin-bottom:0}
+.ban-sum{font-size:13px;color:#43596c;display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+.ban-sum b{font-weight:700;color:var(--navy)}
+.ban-body{margin-top:6px}
+.ban-grp+.ban-grp{margin-top:12px}
+.ban-grp .gl{font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px}
+.bgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.bcard{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line);border-radius:10px;
+  padding:8px 10px;background:#fcfdfe;cursor:pointer;user-select:none}
+.bcard:hover{border-color:#b9c8d6}
+.bcard input{width:24px;height:24px;accent-color:#b3261e;flex:0 0 auto}
+.bcard .bn{font-size:14px;font-weight:700}
+.bcard .bs{font-size:11px;color:var(--muted)}
+.bcard .br{margin-left:auto;font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+.bcard.on{border-color:var(--red);background:#fdf1f0}
+.bcard.on .bn{color:var(--red)}
+.bcard.locked{opacity:.4;cursor:not-allowed}
+
+/* 主盟约 */
+.mgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.mcard{border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;background:#fcfdfe}
+.mcard:hover{border-color:#b9c8d6}
+.mcard.on{border-color:var(--amber);background:#fdf7e8;box-shadow:inset 0 0 0 1px #e7d6a8}
+.mcard .mn{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:700}
+.mcard .mn input{width:17px;height:17px;accent-color:#b07d12}
+.mcard .md{font-size:11.5px;color:var(--muted);margin-top:3px}
+
+/* 推荐 */
+.rec-sum{font-size:13px;color:#43596c;background:#f5f8fb;border:1px solid var(--line);
+  border-radius:9px;padding:8px 11px;margin-bottom:10px}
+.rec-sum b{color:var(--navy)}
+.grp{margin-top:10px}
+.grp h3{font-size:13.5px;margin:0 0 7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grp h3 .n{font-size:12px;color:var(--muted);font-weight:600}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(214px,1fr));gap:8px}
+.card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:9px 10px;
+  display:flex;flex-direction:column;gap:5px;position:relative}
+.card:hover{border-color:#b9c8d6;box-shadow:0 2px 8px rgba(20,45,70,.06)}
+.c-h{display:flex;align-items:center;gap:6px}
+.c-nm{font-size:14px;font-weight:800}
+.c-lv{font-size:11px;color:#fff;border-radius:4px;padding:0 5px}
+.c-lv.I{background:#8a97a3}.c-lv.II{background:#3f8f5c}.c-lv.III{background:#2b6fb5}
+.c-lv.IV{background:#7a4fa8}.c-lv.V{background:#c07a14}.c-lv.VI{background:#b3261e}
+.c-rng{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--blue);background:#eaf1fa;
+  border-radius:5px;padding:1px 6px;white-space:nowrap}
+.c-covs{display:flex;gap:4px;flex-wrap:wrap}
+.cv{font-size:11px;border-radius:4px;padding:0 5px;background:#f1f4f7;color:#4a5d6e;border:1px solid #e3e9ef}
+.cv.core{background:#eaf5ee;color:#1f5a37;border-color:#c9e3d3}
+.cv.ec{background:#fdf4e0;color:#8a6209;border-color:#e7d6a8}
+.c-desc{font-size:12.3px;color:#33465a;line-height:1.5}
+.c-when{font-size:11.3px;color:var(--muted);line-height:1.45}
+.c-tags{display:flex;gap:4px;flex-wrap:wrap}
+.tg{font-size:11px;border-radius:4px;padding:0 5px;border:1px solid #dde4ea;color:#52667a;background:#f8fafb}
+.tg.core{background:#eaf5ee;color:#1f5a37;border-color:#c9e3d3}
+.tg.eq{background:#fdf4e0;color:#8a6209;border-color:#e7d6a8}
+.tg.sp{background:#f4ecfa;color:#5f3f86;border-color:#e2d3f0}
+.c-btns{display:flex;gap:6px;margin-top:2px}
+.c-btns button{flex:1;font-size:12.5px;padding:4px 6px}
+.c-btns .up{background:var(--navy);color:#fff;border-color:var(--navy)}
+.c-btns .up:hover{background:var(--navy2)}
+.c-btns .upx{background:#fdf4e0;border-color:#e7d6a8;color:#7a5708}
+.c-btns .upx:hover{border-color:#c9a94e}
+.xpop{position:absolute;left:0;bottom:44px;width:320px;z-index:60;background:#fff;
+  border:1px solid #b9c8d6;border-radius:10px;box-shadow:0 10px 28px rgba(18,40,62,.22);padding:9px 10px}
+.xpop .xt{font-size:11px;color:var(--muted);margin-bottom:6px}
+.xpop .xh{font-size:10.5px;color:#7b8b9c;margin:5px 0 4px;letter-spacing:.04em}
+.xpop .xc{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.xpop .xc button{font-size:11.5px;padding:3px 0;border-radius:5px;border:1px solid #d8e2ec;background:#f8fbfe;color:#20374d}
+.xpop .xc button:hover{border-color:#7fa8cc;background:#eef6fd}
+.grp-more{margin-top:7px}
+.grp-more button{font-size:12.5px;color:var(--blue);border-color:#c9d8e6;background:#f7fbff}
+
+/* 阵容定位标签与推荐大选项卡 */
+.op .pos{font-size:10.5px;border-radius:4px;padding:0 4px;border:1px solid #dde4ea;color:#52667a;background:#f8fafb}
+.op .pos.ec{background:#fdf4e0;color:#8a6209;border-color:#e7d6a8}
+.op .pos.st{background:#eef2f6;color:#4a5d6e;border-color:#dde4ea}
+.op .pos.tr{background:#eaf1fa;color:#1d4a7a;border-color:#c9d8e6}
+.op .pos.tm{background:#f4ecfa;color:#5f3f86;border-color:#e2d3f0}
+.tab{border:1px solid var(--line);border-radius:10px;margin-top:9px;background:#fff;overflow:hidden}
+.tab-h{width:100%;display:flex;align-items:center;gap:9px;background:#f6f9fc;border:0;border-radius:0;
+  padding:9px 12px;text-align:left}
+.tab-h:hover{background:#eef4fa}
+.tab.open .tab-h{background:#eaf1f9;border-bottom:1px solid var(--line)}
+.tab-h .tnm{font-size:14.5px;font-weight:800;color:var(--navy)}
+.tab-h .tn{font-size:12px;color:var(--muted);font-weight:600}
+.tab-h .tcare{margin-left:auto;font-size:12px;color:var(--blue);white-space:nowrap}
+.tab-body{padding:10px 12px 12px}
+.tab-mini{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;padding:8px 12px 10px}
+.tab-mini .mn2{font-size:12px;padding:3px 2px;border:1px solid #e2e9f1;border-radius:5px;background:#fbfdff;
+  color:#2b4157;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab-mini .mn2:hover{border-color:#9db2c4;background:#eef6fd}
+@media(max-width:1180px){.tab-mini{grid-template-columns:repeat(6,1fr)}}
+
+/* ---------- 截图识别（OCR） ---------- */
+.ocr.collapsed .ocr-body{display:none}
+.ocr.collapsed .p-head{margin-bottom:0}
+.ocr .sw{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#43596c;
+  background:#f4f8fb;border:1px solid var(--line);border-radius:8px;padding:3px 9px;cursor:pointer;user-select:none}
+.ocr .sw input{width:15px;height:15px;accent-color:#1f7a4d}
+.ocr .file-tip{font-size:11.5px;color:var(--muted)}
+.warnbar{font-size:12.5px;color:#7a4b00;background:#fdf4e0;border:1px solid #e7d6a8;border-radius:9px;
+  padding:7px 10px;margin-bottom:9px;line-height:1.55}
+.warnbar b{color:#8a6209}
+.dz{border:1.6px dashed #b9c8d6;border-radius:12px;background:#f8fbfe;padding:12px 14px;
+  display:flex;align-items:center;gap:13px;flex-wrap:wrap;cursor:pointer;transition:.15s}
+.dz:hover,.dz.over{border-color:#2b5f97;background:#eef6fd}
+.dz .kbd{font-size:12px;font-weight:800;color:#fff;background:var(--navy);border-radius:6px;padding:6px 9px;letter-spacing:.4px;white-space:nowrap}
+.dz .hint{font-size:13px;color:#43596c;line-height:1.7}
+.dz .hint b{color:var(--navy)}
+.ocr-main{display:flex;gap:14px;margin-top:10px;align-items:flex-start;flex-wrap:wrap}
+.ocr-shot{flex:0 0 320px;max-width:100%}
+.ocr-shot img{width:100%;border:1px solid #22364b;border-radius:8px;display:block;background:#0d1620;cursor:zoom-in}
+.ocr-shot .meta{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.5;word-break:break-all}
+.ocr-res{flex:1 1 540px;min-width:320px}
+.oc-row+.oc-row{margin-top:9px}
+.oc-h{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#43596c;margin-bottom:5px;flex-wrap:wrap}
+.oc-h b{color:var(--navy)}
+.oc-h .n{font-variant-numeric:tabular-nums}
+.oc-h .warn{color:var(--red);font-weight:700}
+.oc-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:stretch}
+.oc-chip{border:1.4px solid var(--line);background:#fcfdfe;border-radius:7px;padding:3px 8px;font-size:12.5px;
+  color:#33465a;cursor:pointer;display:flex;align-items:center;gap:5px;line-height:1.5}
+.oc-chip .i{font-size:10.5px;color:#9aa8b5;font-variant-numeric:tabular-nums}
+.oc-chip.ban{border-color:var(--red);background:#fdf1f0;color:var(--red);font-weight:700}
+.oc-chip.ban .i{color:#c96c66}
+.oc-chip:hover{border-color:#7fa8cc;background:#f2f8fd}
+.oc-chip.add{border-style:dashed;color:#7b8b9c;border-color:#c3d1de;background:transparent}
+.oc-chip.add:hover{color:var(--navy);border-color:#7fa8cc}
+.oc-empty{font-size:12.5px;color:#9aa8b5;padding:2px 0}
+.oc-tip{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.55}
+.oc-pop{position:fixed;z-index:120;background:#fff;border:1px solid #b9c8d6;border-radius:10px;
+  box-shadow:0 14px 36px rgba(18,40,62,.24);padding:9px;width:314px;max-height:70vh;overflow:auto}
+.oc-pop .t{font-size:11px;color:var(--muted);margin-bottom:6px}
+.oc-pop .g{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.oc-pop .g button{font-size:12px;padding:3px 0;border-radius:5px;border:1px solid #d8e2ec;background:#f8fbfe;color:#20374d}
+.oc-pop .g button:hover{border-color:#7fa8cc;background:#eef6fd}
+.oc-pop .g button.on{border-color:var(--amber);background:#fdf4e0;color:#7a5708;font-weight:700}
+.oc-pop .ops{display:flex;gap:5px;margin-top:7px}
+.oc-pop .ops button{flex:1;font-size:12px;padding:3px 0}
+.oc-pop .ops .del{color:var(--red);border-color:#eecfcd;background:#fdf1f0}
+.oc-bar{height:4px;background:#e7edf4;border-radius:99px;overflow:hidden;margin-top:7px}
+.oc-bar span{display:block;height:100%;width:0;border-radius:99px;
+  background:linear-gradient(90deg,#2b5f97,#1f7a4d);transition:width .18s}
+.oc-status{font-size:12px;color:var(--muted);margin-top:6px;min-height:17px;line-height:1.5}
+.oc-status b{color:var(--navy)}
+.oc-status .err{color:var(--red)}
+.ocr-ops{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;align-items:center}
+.lightbox{position:fixed;inset:0;z-index:200;background:rgba(8,16,25,.9);display:flex;align-items:center;
+  justify-content:center;padding:16px;cursor:zoom-out;overflow:auto}
+.lightbox img{max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+
+.hidden{display:none!important}
+@media(max-width:1180px){.bgrid,.mgrid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">卫戍协议 · 开局决策台</div>
+  <div class="stats" id="topStats"></div>
+</header>
+
+<section class="lineup">
+  <div class="lz">
+    <div class="lz-top">
+      <h2>上阵阵容</h2>
+      <div class="lz-slot" id="slotBox"></div>
+      <div class="lz-right">
+        <label class="lz-eq"><input type="checkbox" id="eqBox">同时部署人数+1（人事部档案效果）</label>
+        <div class="lz-stack" id="stackBox"></div>
+        <button class="ghost" id="clearBtn">清空阵容</button>
+        <button class="ghost" id="saveBtn">保存并刷新</button>
+        <button class="ghost" id="resetBtn">重置本局</button>
+      </div>
+    </div>
+    <div class="lz-zone" id="zoneBar"></div>
+    <div class="lz-covs" id="lzCovs"></div>
+    <div class="lz-ops" id="lzOps"></div>
+  </div>
+</section>
+
+<main>
+  <section class="panel ocr" id="ocrPanel">
+    <div class="p-head">
+      <h2>截图识别 · 自动禁选</h2>
+      <div class="cnt" id="ocrCnt">未上传截图</div>
+      <label class="sw"><input type="checkbox" id="ocrAuto" checked>识别后立即应用</label>
+      <button class="ghost" id="ocrToggle">收起</button>
+    </div>
+    <div class="ocr-body" id="ocrBody">
+      <div class="warnbar hidden" id="ocrFileWarn">
+        当前是用 <b>file://</b> 打开的：能识别，首次需要联网自动下载约 <b>6MB</b>（引擎 4MB + 精简中文模型 1.7MB），
+        下完就存进浏览器缓存，之后断网也能用。想用 <b>ocr/</b> 目录里的离线资源、且不联网，
+        双击同目录下的 <b>「启动工具.bat」</b>，用 <b>http://127.0.0.1:8777</b> 打开本页即可。
+      </div>
+      <div class="dz" id="ocDrop">
+        <span class="kbd">Ctrl + V</span>
+        <span class="hint">
+          游戏里截好图后直接 <b>Ctrl+V</b> 粘贴 · 或把图片 <b>拖到这里</b> · 或
+          <button class="primary" id="ocPick" type="button">选择图片文件</button>
+          <span class="file-tip">（支持 png / jpg / webp）</span>
+        </span>
+        <input type="file" id="ocFile" accept="image/png,image/jpeg,image/webp,image/*" hidden>
+      </div>
+      <div class="oc-tip">
+        判定规则：截图里 <b>核心盟约</b> 一排 10 个、<b>附加盟约</b> 16 个（10 + 6 两排），
+        <b>每个区域里最后 5 个</b>即本局被禁的盟约 —— 识别完成后会自动勾选到下面的禁选面板。
+      </div>
+      <div class="ocr-ops" id="ocrAssetBar">
+        <button id="ocPreload" type="button">预下载 OCR 资源（约 6MB，可先缓存）</button>
+        <button class="ghost" id="ocClearCache" type="button">清除模型缓存</button>
+        <span class="file-tip" id="ocAsset">引擎：未加载 · 模型：未缓存</span>
+      </div>
+      <div class="ocr-main hidden" id="ocrMain">
+        <div class="ocr-shot">
+          <img id="ocPreview" alt="截图预览" title="点击放大查看">
+          <div class="meta" id="ocMeta"></div>
+        </div>
+        <div class="ocr-res" id="ocrRes"></div>
+      </div>
+      <div class="ocr-ops hidden" id="ocrOps">
+        <button class="primary" id="ocApply">应用禁选</button>
+        <button id="ocAgain">重新识别</button>
+        <button class="ghost" id="ocClear">清除截图</button>
+        <span class="file-tip">每个盟约都可点击改名，顺序以截图从左到右为准</span>
+      </div>
+      <div class="oc-bar hidden" id="ocBar"><span></span></div>
+      <div class="oc-status" id="ocStatus"></div>
+    </div>
+  </section>
+
+  <section class="panel ban" id="banPanel">
+    <div class="p-head">
+      <h2>禁选</h2>
+      <div class="cnt" id="banCnt"></div>
+      <button class="ghost" id="banClear">清除选择</button>
+      <button class="ghost" id="banToggle">收起</button>
+    </div>
+    <div class="ban-sum" id="banSum"></div>
+    <div class="ban-body" id="banBody"></div>
+  </section>
+
+  <section class="panel" id="mainPanel">
+    <div class="p-head"><h2>主力盟约</h2><div class="cnt" id="mainCnt"></div></div>
+    <div class="mgrid" id="mgrid"></div>
+  </section>
+
+  <section id="recs"></section>
+</main>
+
+<script>const DATA = {"big":["乌萨斯","卡西米尔","维多利亚","谢拉格","阿戈尔","萨尔贡","伊比利亚","莱塔尼亚","叙拉古","炎"],"small":["奥术","坚守","精准","灵巧","聚合","迅捷","不屈","突袭","奇迹","助力","远见","协防干员","投资人","独行","调和"],"ops":[{"n":1,"name":"折桠","lv":"I","cov":["乌萨斯","不屈"],"core":"乌萨斯","add":["不屈"],"when":"进入休整期时","eff":"转化4层【乌萨斯】临时层数为固定层数","note":"固定层数","val":0,"cap":0,"units":1,"unitNote":"","dyn":true,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":2,"name":"烈夏","lv":"I","cov":["乌萨斯"],"core":"乌萨斯","add":[],"when":"战斗开始时","eff":"使已激活的【乌萨斯】临时层数+8","note":"临时层数","val":8,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":3,"name":"摆渡人","lv":"I","cov":["坚守","不屈"],"core":"","add":["坚守","不屈"],"when":"获得时","eff":"【坚守】【不屈】层数+2","note":"","val":2,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":4,"name":"幽灵鲨","lv":"I","cov":["阿戈尔"],"core":"阿戈尔","add":[],"when":"战斗中","eff":"部署时使已激活的【阿戈尔】层数+2（每回合至多叠加2层）","note":"战斗叠层（部署时）","val":2,"cap":2,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":5,"name":"慕斯","lv":"I","cov":["维多利亚"],"core":"维多利亚","add":[],"when":"休整期结束时","eff":"使已激活的【维多利亚】层数+2","note":"回合叠层","val":2,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":6,"name":"灰喉","lv":"I","cov":["精准"],"core":"","add":["精准"],"when":"获得时","eff":"【精准】层数+4","note":"","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":7,"name":"卡达","lv":"I","cov":["奥术"],"core":"","add":["奥术"],"when":"休整期结束时","eff":"使已激活的【奥术】层数+2","note":"回合结束叠层","val":2,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":8,"name":"夏栎","lv":"I","cov":["助力"],"core":"","add":["助力"],"when":"休整期结束时","eff":"使当前已激活且层数最多的盟约层数+2（此干员在整备区也生效）","note":"回合结束叠层","val":2,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":9,"name":"艾丝黛尔","lv":"I","cov":["萨尔贡","独行"],"core":"萨尔贡","add":["独行"],"when":"战斗中","eff":"每次开启技能时使已激活的【萨尔贡】层数+2（每回合至多叠加4层）","note":"战斗期间叠层（技能开启时）","val":2,"cap":4,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":10,"name":"野鬃","lv":"I","cov":["卡西米尔","助力"],"core":"卡西米尔","add":["助力"],"when":"战斗中","eff":"部署时使已激活的【卡西米尔】层数+2（每回合至多叠加4层）","note":"战斗期间叠层（部署时）","val":2,"cap":4,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":11,"name":"角峰","lv":"I","cov":["谢拉格","坚守"],"core":"谢拉格","add":["坚守"],"when":"战斗中","eff":"对每名敌人首次造成伤害时使目标陷入4秒寒冷","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":12,"name":"深靛","lv":"I","cov":["伊比利亚"],"core":"伊比利亚","add":[],"when":"休整期结束时","eff":"使已激活的【伊比利亚】层数+4","note":"回合结束叠层","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":13,"name":"杰克","lv":"I","cov":["突袭"],"core":"","add":["突袭"],"when":"战斗中","eff":"造成的伤害变为弱点伤害（根据敌人的防御力与法术抗性变换伤害类型）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":14,"name":"霜叶","lv":"I","cov":["灵巧"],"core":"","add":["灵巧"],"when":"获得时","eff":"【灵巧】层数+4","note":"","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":15,"name":"褐果","lv":"I","cov":["聚合"],"core":"","add":["聚合"],"when":"获得时","eff":"【聚合】层数+4","note":"","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":16,"name":"陨星","lv":"I","cov":["迅捷"],"core":"","add":["迅捷"],"when":"战斗中","eff":"每次开启技能时使已激活的【迅捷】层数+2（每回合至多叠加4层）","note":"战斗期间叠层（技能开启时）","val":2,"cap":4,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":17,"name":"地灵","lv":"I","cov":["莱塔尼亚","独行"],"core":"莱塔尼亚","add":["独行"],"when":"战斗中","eff":"攻击范围内每有一名敌人被击倒使已激活的【莱塔尼亚】层数+2（每回合至多叠加2层）","note":"","val":2,"cap":2,"units":"slots","unitNote":"按范围内被击倒的敌人数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":18,"name":"拜松","lv":"I","cov":["炎"],"core":"炎","add":[],"when":"获得时","eff":"【炎】层数+4","note":"","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":19,"name":"拉普兰德","lv":"I","cov":["叙拉古"],"core":"叙拉古","add":[],"when":"获得时","eff":"【叙拉古】层数+4","note":"","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":20,"name":"真理","lv":"II","cov":["乌萨斯"],"core":"乌萨斯","add":[],"when":"常驻","eff":"购买价格为1","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":21,"name":"砾","lv":"II","cov":["卡西米尔","不屈"],"core":"卡西米尔","add":["不屈"],"when":"战斗中","eff":"部署时使已激活的【卡西米尔】【不屈】层数+4（每场战斗至多叠加24层）","note":"","val":4,"cap":24,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":22,"name":"宴","lv":"II","cov":["不屈"],"core":"","add":["不屈"],"when":"获得时","eff":"【不屈】层数+8","note":"","val":8,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":23,"name":"折光","lv":"II","cov":["莱塔尼亚"],"core":"莱塔尼亚","add":[],"when":"休整期结束时","eff":"使已激活的【莱塔尼亚】层数+8","note":"","val":8,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":24,"name":"泡泡","lv":"II","cov":["萨尔贡","坚守"],"core":"萨尔贡","add":["坚守"],"when":"战斗中","eff":"每次开启技能时使已激活的【萨尔贡】【坚守】层数+4（每回合至多叠加8层）","note":"","val":4,"cap":8,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":25,"name":"雪猎","lv":"II","cov":["谢拉格","精准"],"core":"谢拉格","add":["精准"],"when":"获得时","eff":"【谢拉格】【精准】层数+8","note":"","val":8,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":26,"name":"复奏","lv":"II","cov":["叙拉古","莱塔尼亚","奇迹"],"core":"叙拉古","add":["奇迹"],"when":"刷新时","eff":"若为本回合首次主动刷新，使已激活的【叙拉古】【莱塔尼亚】层数+4（此干员在整备区也生效）","note":"","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层","经济","经济盟约"],"econ":["刷新"],"needsEquip":false,"special":""},{"n":27,"name":"Miss.Christine","lv":"II","cov":["维多利亚","奥术"],"core":"维多利亚","add":["奥术"],"when":"休整期结束时","eff":"使已激活的【维多利亚】【奥术】层数+6","note":"","val":6,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":28,"name":"云迹","lv":"II","cov":["灵巧","奇迹"],"core":"","add":["灵巧","奇迹"],"when":"战斗中","eff":"每次开启技能时使自身已激活的盟约层数+6（每回合至多叠加12层）","note":"","val":6,"cap":12,"units":1,"unitNote":"","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":true,"special":""},{"n":29,"name":"蓝毒","lv":"II","cov":["伊比利亚"],"core":"伊比利亚","add":[],"when":"战斗中","eff":"【伊比利亚】每叠加1层，本干员攻击力+1%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":30,"name":"莎草","lv":"II","cov":["萨尔贡","聚合"],"core":"萨尔贡","add":["聚合"],"when":"战斗中","eff":"每次开启技能时使身前一格干员回复4点技力","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":31,"name":"奥斯塔","lv":"II","cov":["叙拉古"],"core":"叙拉古","add":[],"when":"获得时","eff":"获得两次免费刷新","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济"],"econ":["刷新"],"needsEquip":false,"special":""},{"n":32,"name":"哈洛德","lv":"II","cov":["维多利亚","谢拉格"],"core":"维多利亚","add":[],"when":"战斗中","eff":"【维多利亚】【谢拉格】每叠加5层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":33,"name":"蛇屠箱","lv":"II","cov":["坚守"],"core":"","add":["坚守"],"when":"休整期结束时","eff":"使已激活的【坚守】层数+8","note":"","val":8,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":34,"name":"波登可","lv":"II","cov":["迅捷","聚合"],"core":"","add":["迅捷","聚合"],"when":"售出时","eff":"下回合额外获得2资金","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济"],"econ":["资金"],"needsEquip":false,"special":""},{"n":35,"name":"锡人","lv":"II","cov":["投资人"],"core":"","add":["投资人"],"when":"获得时","eff":"【投资人】层数+8","note":"","val":8,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":36,"name":"渡桥","lv":"II","cov":["远见"],"core":"","add":["远见"],"when":"休整期结束时","eff":"使自身及身前一格干员已激活的盟约层数+4","note":"","val":4,"cap":0,"units":2,"unitNote":"按自身与相邻格（至多 2 人）","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":true,"special":""},{"n":37,"name":"星极","lv":"II","cov":["奇迹"],"core":"","add":["奇迹"],"when":"常驻","eff":"只需两名本干员即可合成精锐","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":38,"name":"星源","lv":"II","cov":["助力"],"core":"","add":["助力"],"when":"休整期结束时","eff":"使当前已激活且层数最多的盟约层数+4（此干员在整备区也生效）","note":"","val":4,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":39,"name":"承曦格雷伊","lv":"II","cov":["精准","灵巧"],"core":"","add":["精准","灵巧"],"when":"获得时","eff":"获得两件精准狙击镜","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":40,"name":"矩","lv":"II","cov":["炎"],"core":"炎","add":[],"when":"获得时","eff":"获得等同于当前调度中心等级两倍的【炎】层数","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":41,"name":"瑰盐","lv":"II","cov":["伊比利亚","聚合"],"core":"伊比利亚","add":["聚合"],"when":"战斗中","eff":"【伊比利亚】每叠加3层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":42,"name":"铸铁","lv":"II","cov":["突袭"],"core":"","add":["突袭"],"when":"休整期结束时","eff":"使已激活的【突袭】层数+6","note":"","val":6,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":43,"name":"安哲拉","lv":"II","cov":["阿戈尔","助力"],"core":"阿戈尔","add":["助力"],"when":"战斗中","eff":"每击倒一名敌人或我方干员使已激活的【阿戈尔】【助力】层数+6（每回合至多叠加18层）","note":"","val":6,"cap":18,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":44,"name":"奥尔佳","lv":"III","cov":["乌萨斯","灵巧"],"core":"乌萨斯","add":["灵巧"],"when":"获得时","eff":"获得两件乌萨斯呼吸器","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":45,"name":"乌啾","lv":"III","cov":["乌萨斯","聚合"],"core":"乌萨斯","add":["聚合"],"when":"进入休整期时","eff":"场上每有一名【乌萨斯】干员，转化2层【乌萨斯】临时层数为固定层数","note":"","val":0,"cap":0,"units":"slots","unitNote":"按场上该盟约的干员数","dyn":true,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":46,"name":"海沫","lv":"III","cov":["伊比利亚","不屈"],"core":"伊比利亚","add":["不屈"],"when":"休整期结束时","eff":"自身售出价格+2（自身售出价格至多为8）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":47,"name":"风丸","lv":"III","cov":["不屈"],"core":"","add":["不屈"],"when":"战斗中","eff":"自身被击倒或与傀儡发生替换时使已激活的【不屈】层数+4（每回合至多叠加20层）","note":"","val":4,"cap":20,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":48,"name":"车尔尼","lv":"III","cov":["莱塔尼亚","坚守"],"core":"莱塔尼亚","add":["坚守"],"when":"获得时","eff":"获得两件“莱塔尼亚小鼓”","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":49,"name":"旅骨","lv":"III","cov":["伊比利亚","精准"],"core":"伊比利亚","add":["精准"],"when":"休整期结束时","eff":"使自身及身前一格干员已激活的盟约叠加等同于其售出价格2倍的层数","note":"","val":0,"cap":0,"units":2,"unitNote":"按自身与相邻格（至多 2 人）","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":50,"name":"极光","lv":"III","cov":["谢拉格"],"core":"谢拉格","add":[],"when":"获得时","eff":"【谢拉格】层数+1（每次触发后升级，至多叠加12层）","note":"","val":1,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":51,"name":"初雪","lv":"III","cov":["谢拉格","协防干员"],"core":"谢拉格","add":["协防干员"],"when":"战斗中","eff":"攻击范围内每有一名敌人进入冻结使已激活的【谢拉格】层数+2（每回合至多叠加32层）","note":"","val":2,"cap":32,"units":"slots","unitNote":"按上场人数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":52,"name":"斯卡蒂","lv":"III","cov":["阿戈尔","突袭"],"core":"阿戈尔","add":["突袭"],"when":"战斗中","eff":"部署时使已激活的【阿戈尔】层数+8（每场战斗至多叠加16层）","note":"","val":8,"cap":16,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":53,"name":"卡涅利安","lv":"III","cov":["萨尔贡","莱塔尼亚","迅捷"],"core":"萨尔贡","add":["迅捷"],"when":"获得时","eff":"获得两件“迅捷作战粮”","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":54,"name":"风絮","lv":"III","cov":["炎","聚合"],"core":"炎","add":["聚合"],"when":"休整期结束时","eff":"本回合每获得过一名干员，使已激活的【炎】【聚合】层数+4（每回合至多叠加32层）","note":"","val":4,"cap":32,"units":"slots","unitNote":"按本回合获得的干员数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":55,"name":"耶拉","lv":"III","cov":["谢拉格","奇迹"],"core":"谢拉格","add":["奇迹"],"when":"获得时","eff":"获得两件“谢拉格不融冰”","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":56,"name":"深巡","lv":"III","cov":["阿戈尔","坚守"],"core":"阿戈尔","add":["坚守"],"when":"战斗中","eff":"部署时【阿戈尔】盟约每叠加10层，使自身及周围四格的干员攻击速度+1，持续30秒","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":57,"name":"瑕光","lv":"III","cov":["卡西米尔","突袭"],"core":"卡西米尔","add":["突袭"],"when":"战斗中","eff":"部署时使自身已激活的盟约层数+6（每场战斗至多叠加18层）","note":"","val":6,"cap":18,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""},{"n":58,"name":"忍冬","lv":"III","cov":["叙拉古","迅捷"],"core":"叙拉古","add":["迅捷"],"when":"获得时","eff":"获得1次免费刷新（触发2次后升级，至多获得3次免费刷新）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济"],"econ":["刷新"],"needsEquip":false,"special":""},{"n":59,"name":"水灯心","lv":"III","cov":["维多利亚","灵巧","独行"],"core":"维多利亚","add":["灵巧","独行"],"when":"战斗中","eff":"造成的伤害变为弱点伤害（根据敌人的防御力与法术抗性变换伤害类型）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":60,"name":"吉星","lv":"III","cov":["奇迹"],"core":"","add":["奇迹"],"when":"售出时","eff":"进行一次V阶干员的免费特殊招募","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济","经济盟约"],"econ":["招募"],"needsEquip":false,"special":""},{"n":61,"name":"罗比菈塔","lv":"III","cov":["坚守","助力"],"core":"","add":["坚守","助力"],"when":"休整期结束时","eff":"同一行每有1名干员，使已激活的【坚守】【助力】层数+4","note":"","val":4,"cap":0,"units":"slots","unitNote":"按同一行干员人数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":62,"name":"历阵锐枪芬","lv":"III","cov":["卡西米尔","远见"],"core":"卡西米尔","add":["远见"],"when":"战斗中","eff":"被击倒时召唤整备区的一名【卡西米尔】干员（优先选择最右侧）上场，并使整备区干员的当前再部署时间-60%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":63,"name":"伺夜","lv":"III","cov":["叙拉古","精准"],"core":"叙拉古","add":["精准"],"when":"战斗中","eff":"造成的伤害变为弱点伤害（根据敌人的防御力与法术抗性变换伤害类型）； 每击倒一名敌人使已激活的【叙拉古】【精准】层数+4（每回合至多叠加16层）","note":"","val":4,"cap":16,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":64,"name":"空弦","lv":"III","cov":["精准","远见"],"core":"","add":["精准","远见"],"when":"进入休整期时","eff":"使自身及身前一格干员已激活的盟约层数+6","note":"","val":6,"cap":0,"units":2,"unitNote":"按自身与相邻格（至多 2 人）","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":true,"special":""},{"n":65,"name":"伊桑","lv":"III","cov":["突袭","奥术"],"core":"","add":["突袭","奥术"],"when":"售出时","eff":"随机获得一名当前人数最多盟约的干员（不高于当前调度中心等级；无法获得自身）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":66,"name":"乌有","lv":"III","cov":["炎"],"core":"炎","add":[],"when":"获得时","eff":"获得两枚“盟约之币”","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":67,"name":"凯瑟琳","lv":"III","cov":["维多利亚","远见"],"core":"维多利亚","add":["远见"],"when":"获得时","eff":"获得一件特殊维式重锤，小概率获得终极维式重锤","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":68,"name":"至简","lv":"III","cov":["萨尔贡"],"core":"萨尔贡","add":[],"when":"常驻","eff":"购买价格为1","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":69,"name":"青枳","lv":"III","cov":["迅捷","坚守"],"core":"","add":["迅捷","坚守"],"when":"进入休整期时","eff":"使自身及身后一格干员已激活的盟约层数+6","note":"","val":6,"cap":0,"units":2,"unitNote":"按自身与相邻格（至多 2 人）","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""},{"n":70,"name":"维伊","lv":"IV","cov":["乌萨斯","奥术"],"core":"乌萨斯","add":["奥术"],"when":"战斗中","eff":"【乌萨斯】每叠加1层，本干员攻击速度+1","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":71,"name":"赫拉格","lv":"IV","cov":["乌萨斯","突袭"],"core":"乌萨斯","add":["突袭"],"when":"战斗中","eff":"部署时使已激活的【乌萨斯】【突袭】层数+8（每场战斗至多叠加24层）","note":"","val":8,"cap":24,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":72,"name":"森蚺","lv":"IV","cov":["萨尔贡","不屈"],"core":"萨尔贡","add":["不屈"],"when":"战斗中","eff":"部署时使已激活的【萨尔贡】【不屈】盟约层数+8（每回合至多叠加24层）","note":"","val":8,"cap":24,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":73,"name":"斥罪","lv":"IV","cov":["叙拉古","不屈"],"core":"叙拉古","add":["不屈"],"when":"战斗中","eff":"【叙拉古】【不屈】每叠加3层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":74,"name":"归溟幽灵鲨","lv":"IV","cov":["阿戈尔","不屈"],"core":"阿戈尔","add":["不屈"],"when":"战斗中","eff":"自身被击倒或与替身发生替换时使周围八格的【阿戈尔】干员回复10点技力","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":75,"name":"黑键","lv":"IV","cov":["莱塔尼亚","精准"],"core":"莱塔尼亚","add":["精准"],"when":"战斗中","eff":"攻击范围内每有一名敌人被击倒使已激活的【莱塔尼亚】【精准】层数+2（每回合至多叠加16层）","note":"","val":2,"cap":16,"units":"slots","unitNote":"按范围内被击倒的敌人数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":76,"name":"温蒂","lv":"IV","cov":["伊比利亚","坚守"],"core":"伊比利亚","add":["坚守"],"when":"常驻","eff":"售出价格为6","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":77,"name":"余","lv":"IV","cov":["炎","坚守"],"core":"炎","add":["坚守"],"when":"战斗中","eff":"周围八格每有一名敌人触发元素损伤爆发使自身已激活的盟约层数+2（每回合至多叠加16层）","note":"","val":2,"cap":16,"units":"slots","unitNote":"按元素损伤触发次数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""},{"n":78,"name":"灵知","lv":"IV","cov":["谢拉格","迅捷"],"core":"谢拉格","add":["迅捷"],"when":"获得时","eff":"获得一次特殊刷新，下次刷新至少出现两名谢拉格干员","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济"],"econ":["刷新"],"needsEquip":false,"special":""},{"n":79,"name":"水月","lv":"IV","cov":["阿戈尔","灵巧"],"core":"阿戈尔","add":["灵巧"],"when":"战斗中","eff":"【阿戈尔】盟约每叠加10层，自身及周围四格干员每次造成伤害时使目标移动速度-1%，持续3秒","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":80,"name":"艾雅法拉","lv":"IV","cov":["莱塔尼亚","奥术"],"core":"莱塔尼亚","add":["奥术"],"when":"战斗中","eff":"【莱塔尼亚】【奥术】每叠加1层，本干员技力自然回复速度+0.02/秒，攻击力+1%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":81,"name":"流明","lv":"IV","cov":["伊比利亚","聚合"],"core":"伊比利亚","add":["聚合"],"when":"战斗结束时","eff":"每有一名存活的我方干员，使已激活的【伊比利亚】【聚合】层数+2","note":"","val":2,"cap":0,"units":"slots","unitNote":"按存活的我方干员数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":82,"name":"远牙","lv":"IV","cov":["卡西米尔","精准"],"core":"卡西米尔","add":["精准"],"when":"战斗中","eff":"攻击范围内每有一名敌人被击倒使攻击范围内及整备区中的干员再部署时间-6秒","note":"","val":0,"cap":0,"units":"slots","unitNote":"按范围内被击倒的敌人数","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":83,"name":"玛恩纳","lv":"IV","cov":["卡西米尔"],"core":"卡西米尔","add":[],"when":"战斗中","eff":"【卡西米尔】每叠加5层，本干员部署后100秒内基础攻击力+20、基础生命上限+100","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":84,"name":"白铁","lv":"IV","cov":["维多利亚","助力"],"core":"维多利亚","add":["助力"],"when":"进入休整期时","eff":"使自身携带的装备变为精锐版本","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济"],"econ":["装备"],"needsEquip":false,"special":""},{"n":85,"name":"W","lv":"IV","cov":["迅捷"],"core":"","add":["迅捷"],"when":"战斗中","eff":"【迅捷】每叠加3层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":86,"name":"山","lv":"IV","cov":["投资人"],"core":"","add":["投资人"],"when":"战斗中","eff":"造成的伤害变为弱点伤害（根据敌人的防御力与法术抗性变换伤害类型）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":87,"name":"赫德雷","lv":"IV","cov":["突袭"],"core":"","add":["突袭"],"when":"战斗中","eff":"部署时使已激活的【突袭】层数+8（每回合至多叠加32层）","note":"","val":8,"cap":32,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":88,"name":"仇白","lv":"IV","cov":["炎","灵巧"],"core":"炎","add":["灵巧"],"when":"获得时","eff":"【炎】【灵巧】层数+12","note":"","val":12,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":89,"name":"涤火杰西卡","lv":"IV","cov":["维多利亚","坚守"],"core":"维多利亚","add":["坚守"],"when":"休整期结束时","eff":"场上每有一名携带装备的干员，使已激活的【维多利亚】【坚守】层数+4","note":"","val":4,"cap":0,"units":"slots","unitNote":"按上场携带装备的人数","dyn":false,"tags":["叠层","经济"],"econ":["装备"],"needsEquip":false,"special":""},{"n":90,"name":"霍尔海雅","lv":"IV","cov":["精准","奥术"],"core":"","add":["精准","奥术"],"when":"战斗中","eff":"每次开启技能时使自身已激活的盟约层数+8（每场战斗至多叠加24层）","note":"","val":8,"cap":24,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""},{"n":91,"name":"淬羽赫默","lv":"IV","cov":["助力"],"core":"","add":["助力"],"when":"休整期结束时","eff":"使整备区每名干员已激活的盟约层数+2","note":"","val":2,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":92,"name":"夜莺","lv":"IV","cov":["协防干员","聚合"],"core":"","add":["协防干员","聚合"],"when":"战斗结束时","eff":"每有一名存活的我方干员，使自身已激活的盟约层数+2","note":"","val":2,"cap":0,"units":"slots","unitNote":"按存活的我方干员数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""},{"n":93,"name":"异客","lv":"IV","cov":["萨尔贡","奥术"],"core":"萨尔贡","add":["奥术"],"when":"进入休整期时","eff":"获得2件“盟约之币”或“萨尔贡浓茶”，有小概率发现“拟态物质”","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":94,"name":"安洁莉娜","lv":"IV","cov":["叙拉古","奇迹"],"core":"叙拉古","add":["奇迹"],"when":"休整期结束时","eff":"本回合每进行过1次刷新，使已激活的【叙拉古】层数+4（每回合至多叠加16层），【奇迹】层数+2（每回合至多叠加8层）","note":"","val":4,"cap":16,"units":"slots","unitNote":"按本回合刷新次数","dyn":false,"tags":["叠层","经济","经济盟约"],"econ":["刷新"],"needsEquip":false,"special":""},{"n":95,"name":"寒檀","lv":"IV","cov":["远见"],"core":"","add":["远见"],"when":"休整期结束时","eff":"使已激活的【远见】层数+6","note":"","val":6,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":96,"name":"华法琳","lv":"IV","cov":["灵巧","聚合"],"core":"","add":["灵巧","聚合"],"when":"战斗开始时","eff":"使身前一格干员获得特质“使自身已激活的盟约层数+2（每回合至多叠加14层）”","note":"","val":2,"cap":14,"units":2,"unitNote":"指定身前一格 1 人（连同自身共 2 人）","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""},{"n":97,"name":"冻河","lv":"V","cov":["乌萨斯","迅捷"],"core":"乌萨斯","add":["迅捷"],"when":"战斗中","eff":"攻击范围内每有一名敌人被击倒使已激活的【乌萨斯】【迅捷】层数+2（每场战斗至多叠加32层）","note":"","val":2,"cap":32,"units":"slots","unitNote":"按范围内被击倒的敌人数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":98,"name":"怒潮凛冬","lv":"V","cov":["乌萨斯","奇迹"],"core":"乌萨斯","add":["奇迹"],"when":"战斗中","eff":"【乌萨斯】【奇迹】每叠加10层，本干员技力自然回复速度+0.2/秒，攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":99,"name":"隐德来希","lv":"V","cov":["灵巧","不屈"],"core":"","add":["灵巧","不屈"],"when":"战斗中","eff":"【灵巧】【不屈】每叠加3层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":100,"name":"纯烬艾雅法拉","lv":"V","cov":["莱塔尼亚","远见","聚合"],"core":"莱塔尼亚","add":["远见","聚合"],"when":"战斗中","eff":"攻击范围内每有一名敌人被击倒使已激活的【莱塔尼亚】【聚合】层数+4（每场战斗至多叠加40层）","note":"","val":4,"cap":40,"units":"slots","unitNote":"按范围内被击倒的敌人数","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":101,"name":"艾丽妮","lv":"V","cov":["伊比利亚"],"core":"伊比利亚","add":[],"when":"战斗中","eff":"周围12格每有一名敌人被击倒自身回复6点技力","note":"","val":0,"cap":0,"units":"slots","unitNote":"按范围内被击倒的敌人数","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":102,"name":"黍","lv":"V","cov":["炎","远见"],"core":"炎","add":["远见"],"when":"获得时","eff":"【炎】层数+16，【远见】层数+8","note":"","val":16,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":103,"name":"圣聆初雪","lv":"V","cov":["谢拉格","奥术"],"core":"谢拉格","add":["奥术"],"when":"战斗中","eff":"攻击范围内每有一名敌人冻结自身回复2点技力，并使已激活的【谢拉格】层数+2（每回合至多叠加48层）","note":"","val":2,"cap":48,"units":"slots","unitNote":"按被冻结的敌人数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":104,"name":"歌蕾蒂娅","lv":"V","cov":["阿戈尔"],"core":"阿戈尔","add":[],"when":"进入休整期时","eff":"获得1个幽灵鲨、安哲拉、深巡或斯卡蒂","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":105,"name":"薇薇安娜","lv":"V","cov":["卡西米尔","莱塔尼亚","奥术"],"core":"卡西米尔","add":["奥术"],"when":"战斗中","eff":"场上其他与自身拥有相同盟约的干员在本回合战斗期的叠层上限+14","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":106,"name":"棘刺","lv":"V","cov":["伊比利亚","奥术"],"core":"伊比利亚","add":["奥术"],"when":"休整期结束时","eff":"使已激活的【伊比利亚】叠加等同于场上所有干员售出价格2倍的层数（每回合至多叠加24层）","note":"","val":0,"cap":24,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":107,"name":"佩佩","lv":"V","cov":["萨尔贡","灵巧"],"core":"萨尔贡","add":["灵巧"],"when":"战斗中","eff":"周围八格每有一名敌人或干员进入沉睡或眩晕时使自身及身后一格干员已激活的盟约层数+2（每回合至多叠加18层）","note":"","val":2,"cap":18,"units":"slots","unitNote":"按范围内沉睡/眩晕的单位数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""},{"n":108,"name":"凛御银灰","lv":"V","cov":["谢拉格","灵巧","投资人"],"core":"谢拉格","add":["灵巧","投资人"],"when":"战斗中","eff":"身前一格【谢拉格】【灵巧】干员每场战斗的叠层上限+150%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":109,"name":"乌尔比安","lv":"V","cov":["阿戈尔"],"core":"阿戈尔","add":[],"when":"战斗中","eff":"部署时【阿戈尔】盟约每叠加10层，使自身及周围四格的干员攻击力+1%，持续30秒","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":110,"name":"铃兰","lv":"V","cov":["叙拉古"],"core":"叙拉古","add":[],"when":"进入休整期时","eff":"触发身前两格的其他干员的“获得时”类效果","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":"复制「获得时」"},{"n":111,"name":"贝洛内","lv":"V","cov":["叙拉古","突袭"],"core":"叙拉古","add":["突袭"],"when":"战斗中","eff":"【叙拉古】【突袭】每叠加3层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":112,"name":"迷迭香","lv":"V","cov":["精准","助力"],"core":"","add":["精准","助力"],"when":"休整期结束时","eff":"使已激活的【精准】【助力】层数+20","note":"","val":20,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":113,"name":"塞雷娅","lv":"V","cov":["坚守","协防干员"],"core":"","add":["坚守","协防干员"],"when":"常驻","eff":"身前一格干员若为“休整期结束时”特质，本干员的特质与其相同","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":"复制「休整期结束时」"},{"n":114,"name":"老鲤","lv":"V","cov":["炎","投资人"],"core":"炎","add":["投资人"],"when":"战斗中","eff":"【炎】【投资人】每叠加3层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":115,"name":"可露希尔","lv":"V","cov":["投资人"],"core":"","add":["投资人"],"when":"休整期结束时","eff":"本回合每获得过一名干员，使已激活的【投资人】层数+4（每回合至多叠加32层）","note":"","val":4,"cap":32,"units":"slots","unitNote":"按本回合获得的干员数","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":116,"name":"焰尾","lv":"V","cov":["卡西米尔","迅捷"],"core":"卡西米尔","add":["迅捷"],"when":"休整期结束时","eff":"整备区每有一名干员，使已激活的【卡西米尔】【迅捷】层数+2","note":"","val":2,"cap":0,"units":"slots","unitNote":"按整备区干员数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":117,"name":"维娜·维多利亚","lv":"V","cov":["维多利亚","奇迹"],"core":"维多利亚","add":["奇迹"],"when":"休整期结束时","eff":"场上每有一名不同阶的【维多利亚】干员，使已激活的【维多利亚】【奇迹】层数+4","note":"","val":4,"cap":0,"units":6,"unitNote":"按场上不同阶的干员数（至多 6）","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":118,"name":"溯光星源","lv":"V","cov":["奥术"],"core":"","add":["奥术"],"when":"休整期结束时","eff":"本回合每消耗3资金，使已激活的【奥术】层数+4（每回合至多叠加36层）","note":"","val":4,"cap":36,"units":"slots","unitNote":"按本回合消耗的资金÷3","dyn":false,"tags":["叠层","经济"],"econ":["资金"],"needsEquip":false,"special":""},{"n":119,"name":"Mon3tr","lv":"V","cov":["协防干员"],"core":"","add":["协防干员"],"when":"战斗中","eff":"周围八格干员每场战斗的叠层上限+60%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":120,"name":"鸿雪","lv":"V","cov":["萨尔贡","精准"],"core":"萨尔贡","add":["精准"],"when":"战斗中","eff":"每次开启技能时使已激活的【萨尔贡】【精准】层数+8（每回合至多叠加32层）","note":"","val":8,"cap":32,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":121,"name":"阿米娅","lv":"V","cov":["奇迹"],"core":"","add":["奇迹"],"when":"战斗中","eff":"身前一格干员提升盟约层数时，每次提升的层数额外+2（不受叠层上限影响）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":122,"name":"塔露拉","lv":"VI","cov":["乌萨斯","协防干员","奥术"],"core":"乌萨斯","add":["协防干员","奥术"],"when":"战斗中","eff":"【乌萨斯】盟约获得强化：击倒单位时叠加的临时层数提升至6层；在场6名不同【乌萨斯】干员时，提升至8层","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":123,"name":"史尔特尔","lv":"VI","cov":["突袭","不屈"],"core":"","add":["突袭","不屈"],"when":"战斗中","eff":"每击倒一名敌人使已激活的【突袭】【不屈】层数+8（每回合至多叠加32层）","note":"","val":8,"cap":32,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":124,"name":"引星棘刺","lv":"VI","cov":["伊比利亚","迅捷"],"core":"伊比利亚","add":["迅捷"],"when":"休整期结束时","eff":"使已激活的【伊比利亚】【迅捷】层数+24","note":"","val":24,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":125,"name":"浊心斯卡蒂","lv":"VI","cov":["阿戈尔","聚合"],"core":"阿戈尔","add":["聚合"],"when":"战斗中","eff":"攻击范围内每有一名我方干员部署使已激活的【阿戈尔】层数+4（每场战斗至多叠加40层）","note":"","val":4,"cap":40,"units":"slots","unitNote":"按范围内已部署的我方干员数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":126,"name":"耀骑士临光","lv":"VI","cov":["卡西米尔","突袭"],"core":"卡西米尔","add":["突袭"],"when":"战斗中","eff":"被击倒时召唤整备区最右侧的【卡西米尔】【突袭】干员上场，并使自身及被召唤干员已激活的盟约层数+12（每名干员每回合至多叠加24层）","note":"","val":12,"cap":24,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":127,"name":"酒神","lv":"VI","cov":["维多利亚"],"core":"维多利亚","add":[],"when":"进入休整期时","eff":"获得两件随机装备（不高于当前调度中心等级）","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["经济"],"econ":["装备"],"needsEquip":false,"special":""},{"n":128,"name":"真言","lv":"VI","cov":["萨尔贡"],"core":"萨尔贡","add":[],"when":"战斗中","eff":"【萨尔贡】每叠加5层，本干员攻击力+2%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":129,"name":"遥","lv":"VI","cov":["奇迹","聚合"],"core":"","add":["奇迹","聚合"],"when":"战斗中","eff":"攻击范围内每有一名敌人被击倒使已激活的【聚合】【奇迹】层数+2（每回合至多叠加24层）","note":"","val":2,"cap":24,"units":"slots","unitNote":"按范围内被击倒的敌人数","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":130,"name":"烛煌","lv":"VI","cov":["炎","维多利亚","迅捷"],"core":"炎","add":["迅捷"],"when":"战斗中","eff":"攻击范围内每有一名敌人触发元素损伤爆发使已激活的【炎】【维多利亚】层数+2（每回合至多叠加24层）","note":"","val":2,"cap":24,"units":"slots","unitNote":"按元素损伤触发次数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":131,"name":"克莱门莎","lv":"VI","cov":["阿戈尔"],"core":"阿戈尔","add":[],"when":"战斗开始时","eff":"【阿戈尔】盟约每叠加10层，使场上所有敌人侵蚀损伤冷却恢复速度+1%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":132,"name":"荒芜拉普兰德","lv":"VI","cov":["叙拉古"],"core":"叙拉古","add":[],"when":"战斗中","eff":"所有【叙拉古】干员每击倒一名敌人使已激活的【叙拉古】层数+4（每场战斗至多叠加40层）","note":"","val":4,"cap":40,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":133,"name":"逻各斯","lv":"VI","cov":["远见","奥术"],"core":"","add":["远见","奥术"],"when":"获得时","eff":"【奥术】层数+20，【远见】层数+10 【奥术】【远见】每叠加3层，本干员攻击速度+2","note":"","val":20,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层","吃层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":134,"name":"妮芙","lv":"VI","cov":["迅捷","远见"],"core":"","add":["迅捷","远见"],"when":"战斗中","eff":"攻击范围内每有一名敌人陷入恐惧使已激活的【迅捷】层数+8（每回合至多叠加40层）","note":"","val":8,"cap":40,"units":"slots","unitNote":"按陷入该状态的敌人数","dyn":false,"tags":["叠层","经济盟约"],"econ":[],"needsEquip":false,"special":""},{"n":135,"name":"魔王","lv":"VI","cov":["调和"],"core":"","add":["调和"],"when":"休整期结束时","eff":"使已激活的核心盟约层数+20","note":"","val":20,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":136,"name":"机械师","lv":"VI","cov":["坚守","协防干员"],"core":"","add":["坚守","协防干员"],"when":"进入休整期时","eff":"获得一名当前人数最多盟约的干员","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":""},{"n":137,"name":"夕","lv":"VI","cov":["炎","奥术"],"core":"炎","add":["奥术"],"when":"休整期结束时","eff":"本回合每获得过一名干员，使已激活的【炎】【奥术】层数+4（每回合至多叠加48层）","note":"","val":4,"cap":48,"units":"slots","unitNote":"按本回合获得的干员数","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":false,"special":""},{"n":138,"name":"缪尔赛思","lv":"VI","cov":["协防干员"],"core":"","add":["协防干员"],"when":"获得时","eff":"获得两个“变形同构体”","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":[],"econ":[],"needsEquip":false,"special":"产 2 个变形同构体"},{"n":139,"name":"锏","lv":"VI","cov":["谢拉格","卡西米尔","莱塔尼亚"],"core":"谢拉格","add":[],"when":"战斗中","eff":"【卡西米尔】【谢拉格】【莱塔尼亚】每叠加3层，本干员技力自然回复速度+0.01/秒，生命上限+1%","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":140,"name":"蕾缪安","lv":"VI","cov":["精准"],"core":"","add":["精准"],"when":"战斗中","eff":"【精准】每叠加2层，本干员技力自然回复速度+0.01/秒","note":"","val":0,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["吃层"],"econ":[],"needsEquip":false,"special":""},{"n":141,"name":"帕拉斯","lv":"VI","cov":["灵巧","助力"],"core":"","add":["灵巧","助力"],"when":"休整期结束时","eff":"使自身以及身前一格干员已激活的盟约层数+18","note":"","val":18,"cap":0,"units":1,"unitNote":"","dyn":false,"tags":["叠层"],"econ":[],"needsEquip":true,"special":""}]};</script>
+<script>
+const OPS = DATA.ops, BIG = DATA.big, SMALL = DATA.small;
+const ECON_Y = ["远见","奇迹","投资人"];
+const SOLO = "独行";
+const BAN_SMALL = SMALL.filter(c => c !== SOLO);
+const LV_ORDER = ["I","II","III","IV","V","VI"];
+const KEY = "wsxy-tool-v2";
+const MAT = {1:"I",2:"II",3:"III",4:"IV",5:"V",6:"VI"};
+
+let uid = 1;
+let state = { bans:{ big:[], small:[] }, main:null, lineup:[], equip:false, banCollapsed:false, expanded:{}, openTabs:{ core:true }, zone:{ 远见:false, 奇迹:false, 投资人:false, strong:false } };
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    if(s && s.bans && Array.isArray(s.lineup)){
+      state = Object.assign(state, s);
+      uid = state.lineup.reduce((m,x)=>Math.max(m, x.uid||1), 0) + 1;
+    }
+  }catch(e){}
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+
+const byName = {}; OPS.forEach(o => byName[o.name] = o);
+
+function slots(){ return 8 + (state.equip ? 1 : 0); }
+function bigBanned(c){ return state.bans.big.includes(c); }
+function smallBanned(c){ return state.bans.small.includes(c); }
+function excluded(o){
+  if(o.core && bigBanned(o.core)) return true;
+  const adds = o.add || [];
+  if(adds.length && adds.every(c => smallBanned(c))) return true;
+  return false;
+}
+function isCore(o){ return state.main && o.core === state.main; }
+
+/* 生效盟约集合：同角色多份不重复计入 */
+function covenantSets(){
+  const m = new Map();
+  state.lineup.forEach(it => {
+    const o = byName[it.name]; if(!o) return;
+    const cs = new Set([o.core, ...(o.add||[])].filter(Boolean));
+    if(it.extra) cs.add(it.extra);
+    cs.forEach(c => { if(!m.has(c)) m.set(c, new Set()); m.get(c).add(o.name); });
+  });
+  return m;
+}
+function lineupSorted(){
+  return state.lineup.slice().sort((a,b)=>{
+    const oa = byName[a.name], ob = byName[b.name];
+    const lv = LV_ORDER.indexOf(oa.lv) - LV_ORDER.indexOf(ob.lv);
+    return lv !== 0 ? lv : (oa.n - ob.n);
+  });
+}
+
+/* 叠层区间：lo = 单份数值，hi = 数值 × 载体数，受封顶 */
+function range(o){
+  if(!o || !o.val) return null;
+  const mult = o.units === "slots" ? slots() : (typeof o.units === "number" ? o.units : 1);
+  let hi = o.val * mult;
+  if(o.cap) hi = Math.min(hi, o.cap);
+  return { lo: Math.min(o.val, hi), hi: Math.max(o.val, hi) };
+}
+function rangeText(o){
+  const r = range(o);
+  if(!r) return "";
+  return r.lo === r.hi ? `${r.hi}` : `${r.lo}~${r.hi}`;
+}
+
+/* 上阵 */
+function addOp(name, extra){
+  if(state.lineup.length >= slots()){ toast(`部署位已满（${slots()}）`); return; }
+  state.lineup.push({ uid: uid++, name, extra: extra || null });
+  save(); render();
+}
+function removeUid(u){ state.lineup = state.lineup.filter(x => x.uid !== u); save(); render(); }
+
+/* ---------- 渲染 ---------- */
+function render(){
+  renderTop(); renderLineup(); renderBan(); renderMain(); renderRecs(); save();
+}
+
+function renderTop(){
+  const ex = OPS.filter(excluded).length;
+  document.getElementById('topStats').innerHTML =
+    `<span>可用干员 <b>${OPS.length - ex}</b>/${OPS.length}</span>` +
+    `<span>禁 大 <b>${state.bans.big.length}</b>/5 · 小 <b>${state.bans.small.length}</b>/5</span>` +
+    `<span>主力 <b>${state.main || "未选"}</b></span>` +
+    `<span>上阵 <b>${state.lineup.length}</b>/${slots()}</span>`;
+}
+
+/* 定位标签：经济 > 终端(吃层) > 叠层 > 过渡(低阶) */
+function posTag(o){
+  if((o.econ||[]).length) return {k:'ec', t:'经济'};
+  const tg = o.tags || [];
+  if(tg.includes('吃层')) return {k:'tm', t:'终端'};
+  if(tg.includes('叠层')) return {k:'tr', t:'叠层'};
+  if(LV_ORDER.indexOf(o.lv) <= 1) return {k:'st', t:'过渡'};
+  return null;
+}
+
+/* 单调增层乘数：slots=上阵人数（按全员携带装备），6=阵容不同阶数，2=自身+邻格 */
+function multOf(o){
+  const n = state.lineup.length;
+  if(o.units === 'slots') return n;
+  if(o.units === 6) return Math.min(6, new Set(state.lineup.map(it => (byName[it.name]||{}).lv)).size);
+  if(o.units === 2) return Math.min(2, n);
+  return 1;
+}
+
+function covCount(){
+  const sets = covenantSets(), m = {};
+  sets.forEach((v,k) => { m[k] = v.size; });
+
+  /* 独行：不同独行干员互相冲突 → 只有「同一种独行干员」重复上阵才计入 */
+  const soloNames = state.lineup.map(it => byName[it.name])
+    .filter(o => o && ((o.add||[]).includes(SOLO) || o.core === SOLO))
+    .map(o => o.name);
+  const uniq = [...new Set(soloNames)];
+  m[SOLO] = uniq.length === 1 ? soloNames.length : 0;
+  return m;
+}
+
+function soloInfo(){
+  const names = state.lineup.map(it => byName[it.name])
+    .filter(o => o && ((o.add||[]).includes(SOLO) || o.core === SOLO))
+    .map(o => o.name);
+  const uniq = [...new Set(names)];
+  return { n: names.length, uniq: uniq.length, cnt: uniq.length === 1 ? names.length : 0 };
+}
+
+/* 整备区额外激活（远见/奇迹/投资人可放在整备区凑激活） */
+function zoneOn(c){ return !!(state.zone && state.zone[c]); }
+function isActive(c, cnt){
+  if(BIG.includes(c)) return (cnt || 0) >= 3;
+  if(zoneOn(c)) return true;
+  return (cnt || 0) >= 2;
+}
+
+/* 投资人：「获得时」类特质每次触发 2 次；达 100 层后 3 次 */
+function investorMul(o){
+  if(!zoneOn('投资人') || o.when !== '获得时' || !o.val) return 1;
+  return state.zone.strong ? 3 : 2;
+}
+
+/* 每条上阵独立结算，只落到「已达阈值的盟约」上 */
+function growthMap(active){
+  const g = {};
+  state.lineup.forEach(it => {
+    const o = byName[it.name]; if(!o || !o.val) return;
+    const owned = [o.core, ...(o.add||[]), it.extra].filter(Boolean);
+    const named = [...new Set(((o.eff||'').match(/【[^】]+】/g) || []).map(s => s.slice(1,-1)))]
+      .filter(c => BIG.includes(c) || SMALL.includes(c));
+    const targets = named.length ? named : owned;
+    const add = o.val * multOf(o) * investorMul(o);
+    targets.forEach(c => { if(active.has(c)) g[c] = (g[c]||0) + add; });
+  });
+  return g;
+}
+
+function renderZone(){
+  const box = document.getElementById('zoneBar');
+  if(!box) return;
+  const items = ECON_Y.map(c => {
+    const banned = smallBanned(c), on = zoneOn(c);
+    return `<label class="zchip ${on?'on':''} ${banned?'locked':''}">` +
+      `<input type="checkbox" data-zone="${c}" ${on?'checked':''} ${banned?'disabled':''}>` +
+      `<span>整备区${c}</span></label>`;
+  }).join('');
+  const strong = !!(state.zone && state.zone.strong);
+  const invOn = zoneOn('投资人');
+  const strongEl = `<label class="zchip sub ${strong?'on':''} ${invOn?'':'locked'}">` +
+    `<input type="checkbox" data-zone-strong ${strong?'checked':''} ${invOn?'':'disabled'}>` +
+    `<span>投资人强化（100 层 · 获得时 ×3）</span></label>`;
+  box.innerHTML = `<div class="zl">整备区激活</div>${items}${strongEl}`;
+}
+
+function renderLineup(){
+  const n = state.lineup.length, cap = slots();
+  const sb = document.getElementById('slotBox');
+  sb.innerHTML = `${n}<small> / ${cap}</small>`;
+  sb.className = 'lz-slot' + (n > cap ? ' over' : '');
+  document.getElementById('eqBox').checked = !!state.equip;
+
+  const cnt = covCount();
+  const active = new Set();
+  BIG.forEach(c => { if(isActive(c, cnt[c])) active.add(c); });
+  SMALL.forEach(c => { if(isActive(c, cnt[c])) active.add(c); });
+  const g = growthMap(active);
+
+  renderZone();
+
+  const chips = [];
+  BIG.forEach(c => {
+    const k = cnt[c] || 0; if(!k) return;
+    const cls = k >= 6 ? 'max' : (k >= 3 ? 'on' : 'off');
+    chips.push(`<span class="chip big ${cls}">${c} ${k >= 6 ? '6/6' : k + '/3'}${g[c] ? `（+${g[c]}）` : ''}</span>`);
+  });
+  const solo = soloInfo();
+  SMALL.forEach(c => {
+    const k = cnt[c] || 0;
+    const zone = zoneOn(c);
+    const conflict = c === SOLO && solo.uniq > 1;
+    if(!k && !g[c] && !zone && !conflict) return;
+    let txt;
+    if(conflict && !k) txt = '独行 冲突';
+    else if(zone) txt = k ? `${c} ${k}+整备区` : `${c} 整备区`;
+    else txt = `${c} ${k}`;
+    if(c === '投资人' && zone && state.zone.strong) txt += '·强化';
+    const cls = isActive(c, cnt[c]) ? 'on' : 'off';
+    chips.push(`<span class="chip small ${cls}">${txt}${g[c] ? `（+${g[c]}）` : ''}</span>`);
+  });
+  document.getElementById('lzCovs').innerHTML = chips.join('');
+
+  const ops = lineupSorted();
+  document.getElementById('lzOps').innerHTML = ops.length ? ops.map(it => {
+    const o = byName[it.name];
+    const p = posTag(o);
+    const extra = it.extra ? `<span class="ex">${it.extra}</span>` : '';
+    const tag = p ? `<span class="pos ${p.k}">${p.t}</span>` : '';
+    return `<span class="op"><span class="nm">${o.name}</span><span class="lv ${o.lv}">${o.lv}</span>${tag}${extra}` +
+           `<button class="x" data-del="${it.uid}" title="撤下">×</button></span>`;
+  }).join('') : `<span class="lz-empty">未上阵</span>`;
+
+  const total = Object.values(g).reduce((a,b) => a + b, 0);
+  document.getElementById('stackBox').textContent = total ? `预计 +${total} 层/回合` : `叠层 +0`;
+}
+
+function renderBan(){
+  const p = document.getElementById('banPanel');
+  p.classList.toggle('collapsed', !!state.banCollapsed);
+  document.getElementById('banToggle').textContent = state.banCollapsed ? '展开修改' : '完成禁选';
+  document.getElementById('banCnt').textContent = `大 ${state.bans.big.length}/5 · 小 ${state.bans.small.length}/5`;
+  const bs = state.bans;
+  document.getElementById('banSum').innerHTML =
+    `<span>大盟约：<b>${bs.big.length ? bs.big.join('、') : '未禁'}</b></span>` +
+    `<span>小盟约：<b>${bs.small.length ? bs.small.join('、') : '未禁'}</b></span>` +
+    `<span>剔除 <b>${OPS.filter(excluded).length}</b> 人</span>`;
+
+  const bigFull = bs.big.length >= 5, smallFull = bs.small.length >= 5;
+  const bigHtml = BIG.map(c => {
+    const on = bigBanned(c), locked = !on && bigFull;
+    const n = OPS.filter(o => o.core === c).length;
+    return `<label class="bcard ${on?'on':''} ${locked?'locked':''}" data-ban="big" data-cov="${c}">
+      <input type="checkbox" ${on?'checked':''} ${locked?'disabled':''}>
+      <div><div class="bn">${c}</div><div class="bs">${n} 人可用</div></div>
+      <div class="br">3 激活<br>6 强化</div></label>`;
+  }).join('');
+  const smallHtml = BAN_SMALL.map(c => {
+    const on = smallBanned(c), locked = !on && smallFull;
+    const n = OPS.filter(o => (o.add||[]).includes(c)).length;
+    return `<label class="bcard ${on?'on':''} ${locked?'locked':''}" data-ban="small" data-cov="${c}">
+      <input type="checkbox" ${on?'checked':''} ${locked?'disabled':''}>
+      <div><div class="bn">${c}</div><div class="bs">${n} 人可用</div></div>
+      <div class="br">2 激活</div></label>`;
+  }).join('');
+  document.getElementById('banBody').innerHTML =
+    `<div class="ban-grp"><div class="gl">大盟约</div><div class="bgrid" id="bigGrid">${bigHtml}</div></div>` +
+    `<div class="ban-grp"><div class="gl">小盟约</div><div class="bgrid" id="smallGrid">${smallHtml}</div></div>`;
+}
+
+function renderMain(){
+  const list = BIG.filter(c => !bigBanned(c));
+  document.getElementById('mainCnt').textContent = `${list.length} 个可选`;
+  document.getElementById('mgrid').innerHTML = list.map(c => {
+    const group = OPS.filter(o => o.core === c);
+    const stackers = group.filter(o => (o.val || 0) > 0).length;
+    const ok6 = group.length >= 6;
+    return `<label class="mcard ${state.main===c?'on':''}" data-main="${c}">
+      <div class="mn"><input type="radio" name="maincov" ${state.main===c?'checked':''}>${c}</div>
+      <div class="md">${group.length} 人 · ${stackers} 个叠层位 · ${ok6 ? '可强化 6' : group.length + '/6 无法强化'}</div>
+    </label>`;
+  }).join('') || `<div class="muted">大盟约已全部禁选</div>`;
+}
+
+function cardHtml(o, label){
+  const r = range(o);
+  const extra = o.unitNote ? `区间：${o.unitNote}${o.cap ? ` · 封顶 ${o.cap}` : ''}`
+              : (o.cap ? `封顶 ${o.cap} 层` : '');
+  const covs = [o.core, ...(o.add||[])].filter(Boolean)
+    .map(c => `<span class="cv ${c===o.core?'core':''} ${ECON_Y.includes(c)?'ec':''}">${c}</span>`).join('');
+  const tags = (o.tags||[]).map(t => `<span class="tg">${t}</span>`).join('') +
+    (label ? `<span class="tg core">${label}</span>` : '') +
+    (o.needsEquip ? `<span class="tg eq">需同构体</span>` : '') +
+    (o.special ? `<span class="tg sp">${o.special}</span>` : '');
+  return `<article class="card" data-name="${o.name}">
+    <div class="c-h"><span class="c-nm">${o.name}</span><span class="c-lv ${o.lv}">${o.lv}</span>
+      ${r ? `<span class="c-rng">${rangeText(o)}</span>` : ''}</div>
+    <div class="c-covs">${covs}</div>
+    <div class="c-desc"><b>${o.when || '—'}</b>：${o.eff || '—'}</div>
+    <div class="c-when">${extra ? extra : ''}</div>
+    <div class="c-tags">${tags}</div>
+    <div class="c-btns"><button class="up" data-up="${o.name}">上阵</button>
+      <button class="upx" data-upx="${o.name}">＋同构体</button></div>
+    <div class="xpop hidden" data-xpop="${o.name}">
+      <div class="xt">附加哪个盟约（可含被禁的小盟约）</div>
+      <div class="xh">大盟约</div>
+      <div class="xc">${BIG.map(c => `<button data-addx="${o.name}|${c}">${c}</button>`).join('')}</div>
+      <div class="xh">小盟约</div>
+      <div class="xc">${SMALL.map(c => `<button data-addx="${o.name}|${c}">${c}</button>`).join('')}</div>
+    </div>
+  </article>`;
+}
+
+function tabHtml(id, title, note, ops, label, defOpen){
+  if(!ops.length) return '';
+  const open = (id in state.openTabs) ? !!state.openTabs[id] : !!defOpen;
+  const head = `<button class="tab-h" data-tab="${id}">
+      <span class="tnm">${title}</span>${note ? `<span class="tn">${note}</span>` : ''}
+      <span class="tcare">${ops.length} 人 · ${open ? '收起' : '展开'}</span></button>`;
+  if(!open){
+    return `<section class="tab" data-tabbox="${id}">${head}
+      <div class="tab-mini">${ops.map(o => `<button class="mn2" data-up="${o.name}" title="${o.name}">${o.name}</button>`).join('')}</div>
+    </section>`;
+  }
+  return `<section class="tab open" data-tabbox="${id}">${head}
+    <div class="tab-body"><div class="cgrid">${ops.map(o => cardHtml(o, label)).join('')}</div></div>
+  </section>`;
+}
+
+function renderRecs(){
+  const box = document.getElementById('recs');
+  if(!state.main){
+    box.innerHTML = `<section class="panel"><div class="p-head"><h2>推荐人选</h2></div>
+      <div class="muted">先选主力盟约。</div></section>`;
+    return;
+  }
+  const main = state.main;
+  const core = OPS.filter(o => o.core === main);
+  const coreNames = new Set(core.map(o => o.name));
+  const coreAdds = new Set();
+  core.forEach(o => (o.add||[]).forEach(c => coreAdds.add(c)));
+
+  const stackers = OPS.filter(o => o.needsEquip && !coreNames.has(o.name) && !excluded(o));
+  const specials = OPS.filter(o => o.special && !coreNames.has(o.name) && !excluded(o));
+
+  const groups = [];
+  [...coreAdds].filter(c => !ECON_Y.includes(c) && c !== SOLO).forEach(c => {
+    const ops = OPS.filter(o => (o.add||[]).includes(c) && !coreNames.has(o.name) && !excluded(o)
+      && !stackers.includes(o) && !specials.includes(o));
+    groups.push({ id: 'cov-' + c, title: `【${c}】`, note: c === main ? '' : '小盟约 2 激活', ops });
+  });
+  const ecoOps = OPS.filter(o => (o.add||[]).some(c => ECON_Y.includes(c)) && !excluded(o)
+    && !coreNames.has(o.name) && !stackers.includes(o) && !specials.includes(o));
+
+  const used = new Set([...coreNames,
+    ...stackers.map(o => o.name), ...specials.map(o => o.name),
+    ...ecoOps.map(o => o.name), ...groups.flatMap(g => g.ops.map(o => o.name))]);
+  const others = OPS.filter(o => !excluded(o) && !used.has(o.name));
+
+  const total = core.length;
+  const act = total >= 6 ? '6/6 强化' : (total >= 3 ? '3/3 激活' : `${total}/3`);
+  box.innerHTML = `<section class="panel">
+    <div class="p-head"><h2>推荐人选</h2><div class="cnt">${main} ${act}</div></div>
+    <div class="rec-sum"><b>${main}</b> 本局 ${core.length} 人；已选 ${state.lineup.length}/${slots()}。
+      额外叠层位 ${stackers.length} 人需附加「变形同构体」才吃到 ${main}。</div>
+    ${tabHtml('core', `核心干员 · ${main}`, '主盟约阵营，不受小盟约禁选影响', core, '核心', true)}
+    ${tabHtml('stack', '额外叠层位 · 需变形同构体', '词条加的是自身已激活盟约，附加同构体后才计入 ' + main, stackers, '叠层')}
+    ${groups.map(g => tabHtml(g.id, g.title, g.note, g.ops)).join('')}
+    ${tabHtml('special', '特例', '', specials, '特例')}
+    ${tabHtml('econ', '经济过渡', '远见 / 奇迹 / 投资人未禁则默认推荐', ecoOps, '经济')}
+    ${tabHtml('other', '其他干员', '未归入以上分组的可用干员', others, '其他')}
+  </section>`;
+}
+
+/* ---------- 事件 ---------- */
+let toastTimer;
+function toast(msg){
+  let el = document.getElementById('toast');
+  if(!el){ el = document.createElement('div'); el.id='toast';
+    el.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#23364d;color:#fff;'+
+      'padding:8px 16px;border-radius:8px;font-size:13px;z-index:99;opacity:0;transition:opacity .18s';
+    document.body.appendChild(el); }
+  el.textContent = msg; el.style.opacity = 1;
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ el.style.opacity = 0; }, 1500);
+}
+
+document.addEventListener('change', e => {
+  const b = e.target.closest('label[data-ban]');
+  if(b){
+    const grp = b.dataset.ban, cov = b.dataset.cov;
+    const arr = state.bans[grp];
+    const i = arr.indexOf(cov);
+    if(i >= 0) arr.splice(i, 1);
+    else {
+      if(arr.length >= 5){ toast(`${grp==='big'?'大':'小'}盟约最多禁 5 个`); render(); return; }
+      arr.push(cov);
+    }
+    if(state.main && bigBanned(state.main)){ state.main = null; toast('主力盟约已被禁选，请重选'); }
+    if(grp === 'small' && state.zone && state.zone[cov]){
+      state.zone[cov] = false;
+      if(cov === '投资人') state.zone.strong = false;
+      toast(`整备区${cov}已随禁选取消`);
+    }
+    save(); render(); return;
+  }
+  const m = e.target.closest('label[data-main]');
+  if(m){ state.main = m.dataset.main; save(); render(); return; }
+  if(e.target.id === 'eqBox'){ state.equip = e.target.checked; save(); render(); return; }
+  const z = e.target.closest('[data-zone]');
+  if(z){
+    const c = z.dataset.zone;
+    if(smallBanned(c)) return;
+    state.zone[c] = z.checked;
+    if(c === '投资人' && !z.checked) state.zone.strong = false;
+    save(); render(); return;
+  }
+  const zs = e.target.closest('[data-zone-strong]');
+  if(zs){ state.zone.strong = zs.checked && zoneOn('投资人'); save(); render(); }
+});
+
+document.addEventListener('click', e => {
+  const del = e.target.closest('[data-del]');
+  if(del){ removeUid(+del.dataset.del); return; }
+  const up = e.target.closest('[data-up]');
+  if(up){ addOp(up.dataset.up); return; }
+  const upx = e.target.closest('[data-upx]');
+  if(upx){
+    const name = upx.dataset.upx;
+    document.querySelectorAll('.xpop').forEach(p => { if(p.dataset.xpop !== name) p.classList.add('hidden'); });
+    const pop = document.querySelector(`[data-xpop="${name}"]`);
+    if(pop) pop.classList.toggle('hidden');
+    return;
+  }
+  const ax = e.target.closest('[data-addx]');
+  if(ax){ const [name, cov] = ax.dataset.addx.split('|'); addOp(name, cov); return; }
+  const tab = e.target.closest('[data-tab]');
+  if(tab){ const k = tab.dataset.tab; state.openTabs[k] = !state.openTabs[k]; save(); render(); return; }
+  const more = e.target.closest('[data-more]');
+  if(more){ const k = more.dataset.more; state.expanded[k] = !state.expanded[k]; save(); render(); return; }
+  if(e.target.id === 'banToggle'){
+    state.banCollapsed = !state.banCollapsed; save(); render(); return;
+  }
+  if(e.target.id === 'banClear'){
+    if(!state.bans.big.length && !state.bans.small.length){ toast('当前没有已选的禁选'); return; }
+    state.bans.big = []; state.bans.small = [];
+    save(); render(); toast('已清除禁选选择');
+    return;
+  }
+  if(e.target.id === 'clearBtn'){ state.lineup = []; save(); render(); return; }
+  if(e.target.id === 'saveBtn'){ save(); render(); toast('已保存并刷新'); return; }
+  if(e.target.id === 'resetBtn'){
+    state = { bans:{ big:[], small:[] }, main:null, lineup:[], equip:false, banCollapsed:false, expanded:{}, openTabs:{ core:true }, zone:{ 远见:false, 奇迹:false, 投资人:false, strong:false } };
+    uid = 1; try{ localStorage.removeItem(KEY); }catch(err){}
+    save(); render(); toast('已重置本局'); return;
+  }
+  if(!e.target.closest('.c-btns') && !e.target.closest('.xpop')){
+    document.querySelectorAll('.xpop').forEach(p => p.classList.add('hidden'));
+  }
+});
+
+/* ================= 截图识别（OCR · 自动禁选） ================= */
+const OCR_SMALL_VOCAB = SMALL.concat(SMALL.includes('绝技') ? [] : ['绝技']);
+const OCR_VOCAB = BIG.map(v => ['B', v]).concat(OCR_SMALL_VOCAB.map(v => ['S', v]));
+const OCR_CHAR = /[\u4e00-\u9fff]/;
+const OCR_TJS_V = '5.1.1', OCR_CORE_V = '5.1.1';
+
+/* 引擎来源：本地 ocr/ 优先（http 下才读得到），否则按顺序试镜像 */
+const OCR_LOCAL_SRC = {
+  id:'local', label:'本地 ocr/',
+  script:'ocr/tesseract.min.js', worker:'ocr/worker.min.js', core:'ocr/', lang:'ocr/'
+};
+const OCR_ENGINES = [
+  { id:'jsdelivr', label:'jsDelivr',
+    script:'https://cdn.jsdelivr.net/npm/tesseract.js@' + OCR_TJS_V + '/dist/tesseract.min.js',
+    worker:'https://cdn.jsdelivr.net/npm/tesseract.js@' + OCR_TJS_V + '/dist/worker.min.js',
+    core:'https://cdn.jsdelivr.net/npm/tesseract.js-core@' + OCR_CORE_V + '/' },
+  { id:'fastly', label:'jsDelivr Fastly',
+    script:'https://fastly.jsdelivr.net/npm/tesseract.js@' + OCR_TJS_V + '/dist/tesseract.min.js',
+    worker:'https://fastly.jsdelivr.net/npm/tesseract.js@' + OCR_TJS_V + '/dist/worker.min.js',
+    core:'https://fastly.jsdelivr.net/npm/tesseract.js-core@' + OCR_CORE_V + '/' },
+  { id:'npmmirror', label:'npmmirror',
+    script:'https://registry.npmmirror.com/tesseract.js/' + OCR_TJS_V + '/files/dist/tesseract.min.js',
+    worker:'https://registry.npmmirror.com/tesseract.js/' + OCR_TJS_V + '/files/dist/worker.min.js',
+    core:'https://registry.npmmirror.com/tesseract.js-core/' + OCR_CORE_V + '/files/' },
+  { id:'unpkg', label:'unpkg',
+    script:'https://unpkg.com/tesseract.js@' + OCR_TJS_V + '/dist/tesseract.min.js',
+    worker:'https://unpkg.com/tesseract.js@' + OCR_TJS_V + '/dist/worker.min.js',
+    core:'https://unpkg.com/tesseract.js-core@' + OCR_CORE_V + '/' }
+];
+
+/* 中文模型来源：精简量化版（1.7MB）优先，失败退回完整版（20MB） */
+const OCR_LANGS = [
+  { id:'int', label:'精简模型 1.7MB',
+    base:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/chi_sim/4.0.0_best_int/' },
+  { id:'int-fastly', label:'精简模型 1.7MB',
+    base:'https://fastly.jsdelivr.net/npm/@tesseract.js-data/chi_sim/4.0.0_best_int/' },
+  { id:'full', label:'完整模型 20MB',
+    base:'https://tessdata.projectnaptha.com/4.0.0' }
+];
+
+/* tesseract 把训练好的模型存在 idb-keyval 的 ./chi_sim.traineddata 里 */
+const OCR_CACHE_KEY = './chi_sim.traineddata', OCR_CACHE_DB = 'keyval-store';
+
+const ocrState = { img:null, fileName:'', core:[], small:[], busy:false, worker:null, workerPromise:null,
+                   srcEngine:'', srcLang:'', lastMs:0, idleTimer:0 };
+let ocrPopEl = null;
+
+function ocrEl(id){ return document.getElementById(id); }
+function ocrSetStatus(html){ const el = ocrEl('ocStatus'); if(el) el.innerHTML = html || ''; }
+function ocrSetBar(frac){
+  const bar = ocrEl('ocBar');
+  if(!bar) return;
+  if(frac === null){ bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  bar.firstElementChild.style.width = Math.max(2, Math.min(100, frac*100)).toFixed(1) + '%';
+}
+
+/* ---------- 引擎加载：本地 → 各镜像，逐一自动尝试 ---------- */
+function ocrLoadScript(src){
+  return new Promise((res, rej) => {
+    if (document.querySelector('script[data-ocr="' + src + '"]')) return res();
+    const s = document.createElement('script');
+    s.src = src; s.async = true; s.setAttribute('data-ocr', src);
+    s.onload = () => res();
+    s.onerror = () => { s.remove(); rej(new Error('加载失败: ' + src)); };
+    document.head.appendChild(s);
+  });
+}
+async function ocrFileExists(url){
+  try { const r = await fetch(url, { method:'HEAD', cache:'no-store' }); return !!r.ok; }
+  catch(e){ return false; }
+}
+async function ocrSpawnWorker(engine, lang, onProgress){
+  await ocrLoadScript(engine.script);
+  if (typeof Tesseract === 'undefined') throw new Error('tesseract.js 未就绪');
+  const w = await Tesseract.createWorker('chi_sim', 1, {
+    workerPath: engine.worker, corePath: engine.core, langPath: lang.base, gzip: true,
+    logger: m => onProgress && onProgress(m),
+    errorHandler: e => console.warn('[ocr]', e)
+  });
+  await w.setParameters({ tessedit_pageseg_mode:'11', preserve_interword_spaces:'1' });
+  return w;
+}
+async function ocrGetWorker(onProgress){
+  if (ocrState.worker) return ocrState.worker;
+  if (ocrState.workerPromise) return ocrState.workerPromise;
+  ocrState.workerPromise = (async () => {
+    const engines = [];
+    if (/^https?:$/.test(location.protocol) && await ocrFileExists(OCR_LOCAL_SRC.script)) engines.push(OCR_LOCAL_SRC);
+    engines.push(...OCR_ENGINES);
+    let lastErr = null;
+    for (const eng of engines){
+      const langs = eng.lang ? [{ id:eng.id, label:'本地模型', base:eng.lang }] : OCR_LANGS;
+      for (const lang of langs){
+        try{
+          const w = await ocrSpawnWorker(eng, lang, onProgress);
+          ocrState.worker = w;
+          ocrState.srcEngine = eng.label; ocrState.srcLang = lang.label;
+          console.info('[ocr] 引擎就绪：' + eng.label + ' / ' + lang.label);
+          ocrUpdateAsset();
+          ocrTouchIdle();
+          return w;
+        }catch(err){
+          lastErr = err;
+          console.warn('[ocr] 尝试失败：' + eng.label + ' / ' + lang.label, err);
+        }
+      }
+    }
+    throw lastErr || new Error('OCR 引擎加载失败');
+  })();
+  try { return await ocrState.workerPromise; }
+  finally { ocrState.workerPromise = null; }
+}
+/* 空闲 5 分钟后释放 worker，内存占用回到 0，下次再秒开（模型走 IndexedDB 缓存） */
+function ocrTouchIdle(){
+  clearTimeout(ocrState.idleTimer);
+  ocrState.idleTimer = setTimeout(async () => {
+    if (ocrState.busy) return ocrTouchIdle();
+    const w = ocrState.worker;
+    ocrState.worker = null; ocrState.srcEngine = ''; ocrState.srcLang = '';
+    ocrUpdateAsset();
+    if (w){ try { await w.terminate(); } catch(e){} console.info('[ocr] 空闲，已释放识别引擎'); }
+  }, 5 * 60 * 1000);
+}
+/* 模型缓存（tesseract 用 idb-keyval 存在 keyval-store / ./chi_sim.traineddata） */
+function ocrCacheGet(){
+  return new Promise(res => {
+    let req;
+    try { req = indexedDB.open(OCR_CACHE_DB, 1); } catch(e){ return res(null); }
+    /* 数据库若由本页先建出，必须带上 idb-keyval 需要的 object store，否则会毁掉它的缓存 */
+    req.onupgradeneeded = () => {
+      try {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('keyval')) db.createObjectStore('keyval');
+      } catch(e){}
+    };
+    req.onerror = () => res(null);
+    req.onsuccess = () => {
+      const db = req.result;
+      let done = false;
+      const finish = v => { if (done) return; done = true; try { db.close(); } catch(e){} res(v); };
+      try{
+        const g = db.transaction('keyval', 'readonly').objectStore('keyval').get(OCR_CACHE_KEY);
+        g.onsuccess = () => finish(g.result || null);
+        g.onerror = () => finish(null);
+      }catch(e){ finish(null); }
+    };
+  });
+}
+function ocrCacheClear(){
+  return new Promise(res => {
+    try{
+      const d = indexedDB.deleteDatabase(OCR_CACHE_DB);
+      d.onsuccess = () => res(true);
+      d.onerror = () => res(false);
+      d.onblocked = () => res(false);
+    }catch(e){ res(false); }
+  });
+}
+let ocrLocalProbe = null;
+function ocrLocalAvailable(){
+  if (!ocrLocalProbe) ocrLocalProbe = ocrFileExists(OCR_LOCAL_SRC.script);
+  return ocrLocalProbe;
+}
+async function ocrUpdateAsset(){
+  const el = ocrEl('ocAsset');
+  if (!el) return;
+  const cached = await ocrCacheGet();
+  const size = cached && (cached.byteLength || cached.length || 0);
+  const parts = [];
+  parts.push(ocrState.worker ? `引擎：<b>${ocrState.srcEngine}</b>` : '引擎：<b>未加载</b>');
+  parts.push(size ? `模型：<b>已缓存</b>（${(size/1048576).toFixed(1)}MB）` : '模型：<b>未缓存</b>');
+  if (ocrState.worker && ocrState.srcLang) parts.push(`本次：${ocrState.srcLang}`);
+  el.innerHTML = parts.join(' · ');
+  const btn = ocrEl('ocPreload');
+  if (btn){
+    const local = await ocrLocalAvailable();
+    btn.textContent = local ? '预热 OCR 资源（读本地 ocr/，无需下载）' : '预下载 OCR 资源（首次约 6MB）';
+  }
+}
+
+/* ---------- 图像预处理：抹掉高饱和图标，浅色文字转深色 ---------- */
+function ocrPreprocess(img, scale){
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', { willReadFrequently:true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, w, h);
+  const id = ctx.getImageData(0, 0, w, h), d = id.data;
+  for (let i = 0; i < d.length; i += 4){
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+    const sat = mx ? (mx - mn) / mx : 0;
+    let lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (sat > 0.30) lum = 0;           // 绿色发光图标整体压黑
+    const v = 255 - lum;               // 反相：白字变黑字，便于 OCR
+    d[i] = d[i+1] = d[i+2] = v;
+  }
+  ctx.putImageData(id, 0, 0);
+  return cv;
+}
+
+/* ---------- 字符串相似度 + 词表内切分（DP） ---------- */
+function ocrSim(a, b){
+  const n = a.length, m = b.length;
+  if (!n || !m) return 0;
+  let prev = new Array(m+1), cur = new Array(m+1);
+  for (let j = 0; j <= m; j++) prev[j] = j;
+  for (let i = 1; i <= n; i++){
+    cur[0] = i;
+    for (let j = 1; j <= m; j++){
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + cost);
+    }
+    const t = prev; prev = cur; cur = t;
+  }
+  return 1 - prev[m] / Math.max(n, m);
+}
+function ocrMinSim(v){
+  if (v.length <= 1) return 1;
+  if (v.length === 2) return 0.75;
+  return 0.58;
+}
+function ocrSegmentRun(chars, thr){
+  const t = chars.map(c => c.ch).join('');
+  const n = t.length;
+  if (!n) return [];
+  const dp = new Array(n+1).fill(-1e9), bp = new Array(n+1).fill(null);
+  dp[0] = 0;
+  const gapPen = (i, j) => {
+    let pen = 0;
+    for (let k = i + 1; k < j; k++) if (chars[k].x - chars[k-1].x > thr) pen += 0.9;
+    return pen;
+  };
+  for (let i = 0; i < n; i++){
+    if (dp[i] <= -1e9) continue;
+    const skip = dp[i] - 0.55;
+    if (skip > dp[i+1]){ dp[i+1] = skip; bp[i+1] = { p:i, m:null }; }
+    for (const pair of OCR_VOCAB){
+      const tag = pair[0], v = pair[1], L = v.length, j = i + L;
+      if (j > n) continue;
+      const s = ocrSim(t.slice(i, j), v);
+      if (s < ocrMinSim(v)) continue;
+      const gain = s * L * (0.5 + 0.5 * s) - gapPen(i, j);
+      if (dp[i] + gain > dp[j] + 1e-9){ dp[j] = dp[i] + gain; bp[j] = { p:i, m:{ tag, v, s } }; }
+    }
+  }
+  const out = [];
+  let i = n, guard = 0;
+  while (i > 0 && guard++ < 200){
+    const step = bp[i];
+    if (!step) break;
+    if (step.m) out.push({ tag:step.m.tag, name:step.m.v, score:step.m.s, x:chars[step.p].x, w:0 });
+    i = step.p;
+  }
+  return out.reverse();
+}
+
+/* ---------- 单词 -> 行 -> 段 -> 盟约 ---------- */
+function ocrExtract(words, scale){
+  let ws = words.filter(w => w.c >= 20 && w.h > 4 && w.w > 4 && OCR_CHAR.test(w.t));
+  if (!ws.length) return [];
+  const hs = ws.map(w => w.h).sort((a,b) => a-b);
+  const medH = hs[hs.length >> 1] || 20;
+  ws = ws.filter(w => w.h >= medH * 0.5 && w.h <= medH * 2.6);
+  ws.sort((a,b) => (a.y + a.h/2) - (b.y + b.h/2));
+
+  const lines = [];
+  for (const w of ws){
+    const cy = w.y + w.h/2;
+    const last = lines[lines.length - 1];
+    if (last && Math.abs(cy - last.cy) < Math.max(6, last.h * 0.62)){
+      last.ws.push(w);
+      let sy = 0; const hh = [];
+      for (const x of last.ws){ sy += x.y + x.h/2; hh.push(x.h); }
+      last.cy = sy / last.ws.length;
+      hh.sort((a,b) => a-b);
+      last.h = hh[hh.length >> 1];
+    } else {
+      lines.push({ cy, h:w.h, ws:[w] });
+    }
+  }
+
+  const items = [];
+  for (const ln of lines){
+    ln.ws.sort((a,b) => a.x - b.x);
+    const chars = [];
+    for (const w of ln.ws){
+      const cs = Array.from(w.t).filter(ch => OCR_CHAR.test(ch));
+      if (!cs.length) continue;
+      const cw = w.w / cs.length;
+      cs.forEach((ch, k) => chars.push({
+        ch, x:(w.x + cw * (k + 0.5)) / scale, y:ln.cy / scale, cw:cw / scale
+      }));
+    }
+    if (!chars.length) continue;
+
+    /* 字宽中位数 → 名字内部间距；跨越更大间距的匹配会被扣分，避免跨名字连读 */
+    const widths = chars.map(c => c.cw).sort((a,b) => a-b);
+    const medW = widths[widths.length >> 1] || 20;
+    const thr = medW * 1.05;
+    for (const m of ocrSegmentRun(chars, thr)) items.push({ tag:m.tag, name:m.name, score:m.score, x:m.x, y:chars[0].y });
+  }
+  return items;
+}
+
+/* ---------- 多遍结果合并：按行 / 按列对齐，同名取高分 ---------- */
+function ocrMerge(items, W, H){
+  if (!items.length) return { core:[], small:[] };
+  const yTol = Math.max(10, H * 0.035), xTol = Math.max(8, W * 0.022);
+  items.sort((a,b) => a.y - b.y);
+  const lines = [];
+  for (const it of items){
+    const last = lines[lines.length - 1];
+    if (last && Math.abs(it.y - last.y) < yTol){
+      last.items.push(it);
+      last.y = (last.y * (last.items.length - 1) + it.y) / last.items.length;
+    } else {
+      lines.push({ y:it.y, items:[it] });
+    }
+  }
+  const coreLines = [], smallLines = [];
+  for (const ln of lines){
+    ln.items.sort((a,b) => a.x - b.x);
+    const cells = [];
+    for (const it of ln.items){
+      let cell = null;
+      for (const c of cells){ if (Math.abs(c.x - it.x) < xTol){ cell = c; break; } }
+      if (!cell) cells.push({ x:it.x, best:it });
+      else if (it.score > cell.best.score || (it.tag === cell.best.tag && it.score === cell.best.score)){
+        cell.x = (cell.x + it.x) / 2; cell.best = it;
+      }
+    }
+    const bigN = cells.filter(c => c.best.tag === 'B').length;
+    const smallN = cells.filter(c => c.best.tag === 'S').length;
+    if (bigN >= 3 && bigN >= smallN) coreLines.push({ y:ln.y, cells:cells.filter(c => c.best.tag === 'B') });
+    else if (smallN >= 3) smallLines.push({ y:ln.y, cells:cells.filter(c => c.best.tag === 'S') });
+  }
+  const flatten = arr => {
+    const seen = new Set(), out = [];
+    arr.sort((a,b) => a.y - b.y).forEach(ln => {
+      ln.cells.sort((a,b) => a.x - b.x).forEach(c => {
+        if (seen.has(c.best.name)) return;
+        seen.add(c.best.name);
+        out.push({ name:c.best.name, x:c.x, y:ln.y, score:c.best.score });
+      });
+    });
+    return out;
+  };
+  return { core:flatten(coreLines), small:flatten(smallLines) };
+}
+
+/* ---------- 结果 -> 禁选（每区最后 5 个） ---------- */
+function ocrBanPlan(){
+  const core = ocrState.core.map(x => x.name);
+  const small = ocrState.small.map(x => x.name);
+  const bigBan = core.length >= 5 ? core.slice(-5) : [];
+  const smallRaw = small.length >= 5 ? small.slice(-5) : [];
+  return {
+    bigBan: bigBan.filter(c => BIG.includes(c)),
+    smallRaw,
+    smallBan: smallRaw.filter(c => BAN_SMALL.includes(c)),
+    dropped: smallRaw.filter(c => !BAN_SMALL.includes(c)),
+    core, small
+  };
+}
+function ocrApply(){
+  if (!ocrState.core.length && !ocrState.small.length){ toast('还没有识别结果'); return; }
+  const plan = ocrBanPlan();
+  if (!plan.bigBan.length && !plan.smallBan.length){
+    toast('识别数量不足 5 个，请先校正顺序'); return;
+  }
+  if (plan.bigBan.length) state.bans.big = plan.bigBan.slice();
+  if (plan.smallBan.length) state.bans.small = plan.smallBan.slice();
+  if (state.main && state.bans.big.includes(state.main)){
+    state.main = null; toast('主力盟约已被禁选，请重选');
+  }
+  if (state.zone){
+    state.bans.small.forEach(c => { if (state.zone[c]) state.zone[c] = false; });
+    if (!state.zone['投资人']) state.zone.strong = false;
+  }
+  save(); render();
+  const txt = [];
+  if (plan.bigBan.length) txt.push('大：' + plan.bigBan.join('、'));
+  if (plan.smallBan.length) txt.push('小：' + plan.smallBan.join('、'));
+  toast('已应用禁选 · ' + txt.join(' / '));
+  if (plan.dropped.length) console.warn('[ocr] 这些盟约不在本工具数据内，已忽略：', plan.dropped);
+}
+
+/* ---------- 渲染 ---------- */
+function ocrGroupHtml(kind, seq, title, expect, startBan){
+  const banned = Math.max(0, startBan);
+  const chips = seq.map((it, i) =>
+    `<button class="oc-chip ${i >= banned ? 'ban' : ''}" data-ocr-chip="${kind}:${i}" title="点击改名字">` +
+    `<span class="i">${i + 1}</span>${it.name}` +
+    (i >= banned ? '<span class="i">禁</span>' : '') + '</button>').join('');
+  const add = `<button class="oc-chip add" data-ocr-add="${kind}">＋ 补一个</button>`;
+  const lack = seq.length < 5 ? `<span class="warn">只识别到 ${seq.length} 个，至少要点满 5 个才会自动禁选</span>` : '';
+  const full = seq.length >= expect ? '已识别齐全' : `缺 ${expect - seq.length} 个（不影响取名次，但请核对）`;
+  return `<div class="oc-row">
+    <div class="oc-h"><b>${title}</b><span class="n">${seq.length}/${expect}</span>
+      <span>${full}</span>${lack}<span>· 最后 5 个将被禁用</span></div>
+    <div class="oc-chips">${chips || '<span class="oc-empty">没有识别到该区域</span>'}${add}</div>
+  </div>`;
+}
+function ocrRenderResult(){
+  const res = ocrEl('ocrRes');
+  if (!res) return;
+  const plan = ocrBanPlan();
+  const drop = plan.dropped.length
+    ? ` <span class="warn">（「${plan.dropped.join('、')}」在本工具里没有对应禁选项，已跳过）</span>` : '';
+  res.innerHTML =
+    ocrGroupHtml('core', ocrState.core, '核心盟约', BIG.length, ocrState.core.length - 5) +
+    ocrGroupHtml('small', ocrState.small, '附加盟约', OCR_SMALL_VOCAB.length, ocrState.small.length - 5) +
+    `<div class="oc-tip">识别顺序 = 截图里从左到右、从上到下，点任意盟约可以改名字。
+      当前将禁：大盟约「${plan.bigBan.join('、') || '—'}」，小盟约「${plan.smallBan.join('、') || '—'}」。${drop}</div>`;
+}
+function ocrRenderPreview(){
+  const img = ocrEl('ocPreview');
+  if (!img) return;
+  img.src = ocrState.img ? ocrState.img.src : '';
+  ocrEl('ocMeta').innerHTML = ocrState.img
+    ? `${ocrState.fileName || '截图'} · ${ocrState.img.naturalWidth}×${ocrState.img.naturalHeight}` +
+      (ocrState.lastMs ? `<br>识别用时 ${(ocrState.lastMs/1000).toFixed(1)}s · ${ocrState.srcEngine || '在线'}` +
+        (ocrState.srcLang ? ` · ${ocrState.srcLang}` : '') : '')
+    : '';
+  ocrEl('ocrCnt').textContent = ocrState.img
+    ? `${ocrState.core.length}/${BIG.length} · ${ocrState.small.length}/${OCR_SMALL_VOCAB.length}`
+    : '未上传截图';
+}
+
+/* ---------- 改名弹层 ---------- */
+function ocrClosePop(){
+  if (ocrPopEl){ ocrPopEl.remove(); ocrPopEl = null; }
+}
+function ocrOpenPop(kind, idx, anchor){
+  ocrClosePop();
+  const list = kind === 'core' ? BIG : OCR_SMALL_VOCAB;
+  const seq = kind === 'core' ? ocrState.core : ocrState.small;
+  const current = idx >= 0 && seq[idx] ? seq[idx].name : '';
+  const pop = document.createElement('div');
+  pop.className = 'oc-pop';
+  pop.innerHTML =
+    `<div class="t">${kind === 'core' ? '核心盟约' : '附加盟约'} · 第 ${idx >= 0 ? idx + 1 : '新'} 个，选一个名字</div>` +
+    `<div class="g">${list.map(n => `<button data-ocr-set="${n}" class="${n === current ? 'on' : ''}">${n}</button>`).join('')}</div>` +
+    `<div class="ops">${idx >= 0 ? '<button class="del" data-ocr-del="1">从序列中移除</button>' : ''}` +
+    `<button data-ocr-close="1" class="ghost">取消</button></div>`;
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = Math.min(r.left, innerWidth - pw - 10);
+  let top = r.bottom + 6;
+  if (top + ph > innerHeight - 10) top = Math.max(10, r.top - ph - 6);
+  pop.style.left = Math.max(8, left) + 'px';
+  pop.style.top = Math.max(8, top) + 'px';
+  pop.dataset.kind = kind;
+  pop.dataset.idx = String(idx);
+  ocrPopEl = pop;
+}
+function ocrSetName(kind, idx, name){
+  const seq = kind === 'core' ? ocrState.core : ocrState.small;
+  if (idx < 0){
+    /* 追加：已经在序列里就不重复添加 */
+    if (seq.some(it => it.name === name)){ toast(`「${name}」已经在序列里`); return; }
+    const last = seq[seq.length - 1];
+    seq.push({ name, x:last ? last.x + 1 : 0, y:last ? last.y : 0, score:1 });
+  } else {
+    const dup = seq.findIndex((it, i) => i !== idx && it.name === name);
+    if (dup >= 0){ const t = seq[dup].name; seq[dup].name = seq[idx].name; seq[idx].name = t; }
+    else seq[idx].name = name;
+  }
+  ocrRenderResult(); ocrRenderPreview();
+  if (ocrEl('ocrAuto') && ocrEl('ocrAuto').checked) ocrApply();
+}
+function ocrRemoveName(kind, idx){
+  const seq = kind === 'core' ? ocrState.core : ocrState.small;
+  if (idx >= 0 && idx < seq.length) seq.splice(idx, 1);
+  ocrRenderResult(); ocrRenderPreview();
+  if (ocrEl('ocrAuto') && ocrEl('ocrAuto').checked) ocrApply();
+}
+
+/* ---------- 主流程 ---------- */
+function ocrHandleFile(file){
+  if (!file){ return; }
+  if (!/^image\//.test(file.type || '')){ toast('这个文件不是图片'); return; }
+  ocrState.fileName = file.name || '剪贴板截图';
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    ocrState.img = img;
+    ocrState.core = []; ocrState.small = []; ocrState.lastMs = 0;
+    ocrEl('ocrMain').classList.remove('hidden');
+    ocrEl('ocrOps').classList.remove('hidden');
+    ocrRenderPreview(); ocrRenderResult();
+    ocrRun();
+  };
+  img.onerror = () => toast('图片读取失败');
+  img.src = url;
+}
+function ocrProgressText(m){
+  const map = {
+    'loading tesseract core':'载入 WASM 内核',
+    'initializing tesseract':'初始化引擎',
+    'loading language traineddata':'加载中文模型（首次约 1.7MB，之后走缓存）',
+    'initializing api':'初始化识别接口',
+    'recognizing text':'识别中'
+  };
+  const label = map[m.status] || m.status || '';
+  ocrSetStatus(`<b>${label}</b> ${Math.round((m.progress || 0) * 100)}%`);
+  ocrSetBar(m.progress || 0);
+}
+async function ocrRun(){
+  if (!ocrState.img) return;
+  if (ocrState.busy){ ocrState.pendingRun = true; return; }
+  ocrState.busy = true;
+  const img = ocrState.img, t0 = performance.now();
+  ocrState.passWords = [];
+  ocrEl('ocApply').disabled = true; ocrEl('ocAgain').disabled = true;
+  ocrSetBar(0.02);
+  ocrSetStatus('<b>准备 OCR 引擎…</b>');
+  try{
+    const worker = await ocrGetWorker(ocrProgressText);
+    const W = img.naturalWidth, H = img.naturalHeight;
+    let base = Math.min(3.0, Math.max(1.1, 5200 / W));
+    if (W * base > 6000) base = 6000 / W;
+    const scales = [base, base * 0.72];
+    let items = [];
+    for (let p = 0; p < scales.length; p++){
+      if (ocrState.img !== img) return;     /* 期间换了新截图，交给下一轮 */
+      const sc = scales[p];
+      ocrSetStatus(`<b>识别中 · 第 ${p + 1}/${scales.length} 遍</b>（${sc.toFixed(2)}×）`);
+      ocrSetBar(0.05 + p * 0.45);
+      const cv = ocrPreprocess(img, sc);
+      const { data } = await worker.recognize(cv);
+      const words = (data.words || []).map(w => ({
+        t:w.text, c:w.confidence, x:w.bbox.x0, y:w.bbox.y0,
+        w:w.bbox.x1 - w.bbox.x0, h:w.bbox.y1 - w.bbox.y0
+      }));
+      ocrState.lastWords = words; ocrState.lastScale = sc;
+      (ocrState.passWords = ocrState.passWords || []).push({ scale:sc, words });
+      items = items.concat(ocrExtract(words, sc));
+      const pre = ocrMerge(items, W, H);
+      if (pre.core.length >= BIG.length && pre.small.length >= OCR_SMALL_VOCAB.length) break;
+    }
+    if (ocrState.img !== img) return;
+    const merged = ocrMerge(items, W, H);
+    ocrState.core = merged.core; ocrState.small = merged.small;
+    ocrState.lastMs = performance.now() - t0;
+    ocrSetBar(null);
+    ocrRenderResult(); ocrRenderPreview();
+    const ok = ocrState.core.length >= 5 && ocrState.small.length >= 5;
+    ocrSetStatus(`<b>识别完成</b> · 核心 ${ocrState.core.length}/${BIG.length} · 附加 ${ocrState.small.length}/${OCR_SMALL_VOCAB.length}` +
+      (ok ? '' : ' · <span class="err">识别不足，请点盟约改名字或用「＋ 补一个」补齐</span>'));
+    if (ok && ocrEl('ocrAuto').checked) ocrApply();
+    else if (!ok) toast('识别不完整，请手动校正');
+    ocrTouchIdle(); ocrUpdateAsset();
+  }catch(err){
+    console.error(err);
+    ocrSetBar(null);
+    ocrSetStatus('<span class="err"><b>识别失败：</b>' + (err && err.message ? err.message : err) + '</span>' +
+      '<br>检查：是否已联网（离线包 / ocr/ 目录是否完整）；点上面的「预下载 OCR 资源」可先缓存引擎与模型。');
+  }finally{
+    ocrState.busy = false;
+    ocrEl('ocApply').disabled = false; ocrEl('ocAgain').disabled = false;
+  }
+  if (ocrState.pendingRun){ ocrState.pendingRun = false; ocrRun(); }
+}
+function ocrClearAll(){
+  if (ocrState.img && ocrState.img.src.startsWith('blob:')) URL.revokeObjectURL(ocrState.img.src);
+  ocrState.img = null; ocrState.core = []; ocrState.small = []; ocrState.fileName = ''; ocrState.lastMs = 0;
+  ocrEl('ocrMain').classList.add('hidden');
+  ocrEl('ocrOps').classList.add('hidden');
+  ocrSetStatus(''); ocrSetBar(null);
+  ocrRenderPreview();
+  ocrClosePop();
+}
+
+/* ---------- 资源预下载 / 缓存清理 ---------- */
+async function ocrPreload(){
+  if (ocrState.busy){ toast('正在识别，稍后再试'); return; }
+  ocrState.busy = true;
+  ocrEl('ocPreload').disabled = true;
+  ocrSetBar(0.02);
+  const local = await ocrLocalAvailable();
+  ocrSetStatus(local
+    ? '<b>预热 OCR 资源…</b> <span class="muted">直接读 ocr/ 目录里的离线文件</span>'
+    : '<b>预下载 OCR 资源…</b> <span class="muted">引擎 + 精简中文模型，首次约 6MB</span>');
+  try{
+    await ocrGetWorker(ocrProgressText);
+    ocrSetBar(null);
+    ocrSetStatus(`<b>资源就绪</b> · 引擎 ${ocrState.srcEngine} · ${ocrState.srcLang}；` +
+      '模型已写入浏览器缓存，之后断网也能识别');
+    toast('OCR 资源已缓存');
+  }catch(err){
+    console.error(err);
+    ocrSetBar(null);
+    ocrSetStatus('<span class="err"><b>预下载失败：</b>' + (err && err.message ? err.message : err) + '</span>' +
+      '<br>可能被网络或代理拦截，可改用「启动工具.bat」以 http 打开，直接读 ocr/ 目录里的离线资源。');
+  }finally{
+    ocrState.busy = false;
+    if (ocrEl('ocPreload')) ocrEl('ocPreload').disabled = false;
+    ocrTouchIdle(); ocrUpdateAsset();
+  }
+}
+async function ocrClearCache(){
+  if (ocrState.busy){ toast('正在识别，稍后再试'); return; }
+  const w = ocrState.worker;
+  ocrState.worker = null; ocrState.srcEngine = ''; ocrState.srcLang = '';
+  if (w){ try { await w.terminate(); } catch(e){} }
+  const ok = await ocrCacheClear();
+  ocrSetStatus(ok ? '模型缓存已清除，下次识别会重新下载' : '清除失败：缓存正被其他标签页占用');
+  toast(ok ? '已清除模型缓存' : '清除失败');
+  ocrUpdateAsset();
+}
+
+/* ---------- 事件绑定 ---------- */
+function ocrInit(){
+  if (location.protocol === 'file:') ocrEl('ocrFileWarn').classList.remove('hidden');
+
+  ocrEl('ocrToggle').addEventListener('click', () => {
+    state.ocrCollapsed = !state.ocrCollapsed; save(); ocrSyncPanel();
+  });
+  document.getElementById('ocPick').addEventListener('click', e => { e.stopPropagation(); ocrEl('ocFile').click(); });
+  ocrEl('ocDrop').addEventListener('click', e => {
+    if (e.target.id === 'ocPick' || e.target.id === 'ocFile') return;
+    ocrEl('ocFile').click();
+  });
+  ocrEl('ocFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) ocrHandleFile(f);
+    e.target.value = '';
+  });
+  ['dragenter','dragover'].forEach(t => ocrEl('ocDrop').addEventListener(t, e => {
+    e.preventDefault(); e.stopPropagation(); ocrEl('ocDrop').classList.add('over');
+  }));
+  ['dragleave','dragend'].forEach(t => ocrEl('ocDrop').addEventListener(t, e => {
+    e.preventDefault(); ocrEl('ocDrop').classList.remove('over');
+  }));
+  ocrEl('ocDrop').addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation(); ocrEl('ocDrop').classList.remove('over');
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) ocrHandleFile(f);
+  });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    if (e.target.closest && e.target.closest('#ocDrop')) return;
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && /^image\//.test(f.type || '')) ocrHandleFile(f);
+  });
+  document.addEventListener('paste', e => {
+    const cd = e.clipboardData; if (!cd) return;
+    let file = null;
+    if (cd.items){
+      for (const it of cd.items){ if (it.kind === 'file' && /^image\//.test(it.type)){ file = it.getAsFile(); break; } }
+    }
+    if (!file && cd.files && cd.files.length) file = cd.files[0];
+    if (file){ e.preventDefault(); ocrHandleFile(file); }
+  });
+
+  ocrEl('ocAgain').addEventListener('click', () => ocrRun());
+  ocrEl('ocApply').addEventListener('click', () => ocrApply());
+  ocrEl('ocClear').addEventListener('click', () => ocrClearAll());
+  ocrEl('ocPreload').addEventListener('click', () => ocrPreload());
+  ocrEl('ocClearCache').addEventListener('click', () => ocrClearCache());
+  ocrEl('ocPreview').addEventListener('click', () => {
+    if (!ocrState.img) return;
+    const box = document.createElement('div');
+    box.className = 'lightbox';
+    box.innerHTML = `<img src="${ocrState.img.src}" alt="">`;
+    box.addEventListener('click', () => box.remove());
+    document.body.appendChild(box);
+  });
+
+  ocrEl('ocrRes').addEventListener('click', e => {
+    const chip = e.target.closest('[data-ocr-chip]');
+    const add = e.target.closest('[data-ocr-add]');
+    if (chip){
+      const [kind, i] = chip.dataset.ocrChip.split(':');
+      ocrOpenPop(kind, +i, chip);
+      return;
+    }
+    if (add){
+      const kind = add.dataset.ocrAdd;
+      ocrOpenPop(kind, -1, add);
+      return;
+    }
+  });
+  document.addEventListener('click', e => {
+    if (!ocrPopEl) return;
+    if (e.target.closest('.oc-pop')) return;
+    if (e.target.closest('[data-ocr-chip],[data-ocr-add]')) return;
+    ocrClosePop();
+  });
+  document.addEventListener('click', e => {
+    if (!ocrPopEl) return;
+    const pop = ocrPopEl;
+    const kind = pop.dataset.kind, idx = +pop.dataset.idx;
+    const set = e.target.closest('[data-ocr-set]');
+    if (set){ ocrSetName(kind, idx, set.dataset.ocrSet); ocrClosePop(); return; }
+    if (e.target.closest('[data-ocr-del]')){ ocrRemoveName(kind, idx); ocrClosePop(); return; }
+    if (e.target.closest('[data-ocr-close]')){ ocrClosePop(); }
+  }, true);
+  window.addEventListener('resize', () => ocrClosePop());
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') ocrClosePop(); });
+
+  /* 调试/自动化入口：?img=<图片地址> 直接识别 */
+  try{
+    const src = new URLSearchParams(location.search).get('img');
+    if (src){
+      fetch(src).then(r => r.blob()).then(b => {
+        const name = src.split('/').pop() || 'demo.png';
+        ocrHandleFile(new File([b], name, { type: b.type || 'image/png' }));
+      }).catch(err => console.warn('[ocr] 预载图片失败', err));
+    }
+  }catch(e){}
+
+  ocrSyncPanel();
+  ocrRenderPreview();
+  ocrRenderResult();
+  ocrUpdateAsset();
+}
+function ocrSyncPanel(){
+  const p = ocrEl('ocrPanel');
+  if (!p) return;
+  p.classList.toggle('collapsed', !!state.ocrCollapsed);
+  ocrEl('ocrToggle').textContent = state.ocrCollapsed ? '展开识别' : '收起';
+}
+
+load(); render(); ocrInit();
+</script>
+</body>
+</html>
+

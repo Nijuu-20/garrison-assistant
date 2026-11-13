@@ -1,0 +1,642 @@
+{
+  "version": 2,
+  "reference_size": [
+    2560,
+    1440
+  ],
+  "normalized_width": 1280,
+  "icon_sizes": [
+    48,
+    50,
+    52
+  ],
+  "references": [
+    {
+      "file": "prts/CV01.png",
+      "name": "炎",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV01",
+      "sha256": "12c6b1c55ebdd3d00a0ef4093005f9130cffbd7bfea80581437387e1864cb0da",
+      "image_url": "https://media.prts.wiki/c/c6/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_yanShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon yanShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV02.png",
+      "name": "萨尔贡",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV02",
+      "sha256": "13063e680984c6da74a01bd9e551b78ff8d615f15773cb22801d88dfd0c38f26",
+      "image_url": "https://media.prts.wiki/b/ba/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_sargonShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon sargonShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV03.png",
+      "name": "维多利亚",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV03",
+      "sha256": "aa99c01b64804d978b11257d6504dce82395ea8a669cd8926a7076fc9512e530",
+      "image_url": "https://media.prts.wiki/e/e7/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_victoriaShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon victoriaShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV04.png",
+      "name": "谢拉格",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV04",
+      "sha256": "fc4ca11fbcf32a1b61ac7ace381a2dcd0456c3b761a4a62938c6b995a04587ac",
+      "image_url": "https://media.prts.wiki/b/b0/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_kjeragShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon kjeragShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV05.png",
+      "name": "阿戈尔",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV05",
+      "sha256": "057c765bfb1ddf9ac11a6b0234d2c70dd8b74a6ac5b02c74baf634684e7568df",
+      "image_url": "https://media.prts.wiki/e/e5/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_egirShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon egirShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV06.png",
+      "name": "叙拉古",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV06",
+      "sha256": "021412cc399aa649356825a5d8c6e532e322c5b05d7e582b6ec552b7edfd0d03",
+      "image_url": "https://media.prts.wiki/b/b6/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_siracusaShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon siracusaShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV07.png",
+      "name": "卡西米尔",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV07",
+      "sha256": "e5e8044f05f2f91f4cae5dd57ed8752c2ca62f10b265719b5947ecc4ef99f304",
+      "image_url": "https://media.prts.wiki/0/0d/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_kazimierzShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon kazimierzShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV08.png",
+      "name": "乌萨斯",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV08",
+      "sha256": "bafc5ebbcec4d550a93da41922e902abe9f248b64c83da4c20cc0d9d87f8068a",
+      "image_url": "https://media.prts.wiki/f/f1/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_ursusShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon ursusShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV09.png",
+      "name": "伊比利亚",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV09",
+      "sha256": "8e098fe520102290951837e85282fe4efa046ef12a68a4a9c4a028e4fc5fa2c2",
+      "image_url": "https://media.prts.wiki/d/d2/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_iberiaShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon iberiaShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV10.png",
+      "name": "莱塔尼亚",
+      "kind": "core",
+      "source": "PRTS",
+      "covenant_id": "CV10",
+      "sha256": "8c2c1325d6ae73a6bbd51c18ed69c01ec65c0db078c498829dba5199be7da7ad",
+      "image_url": "https://media.prts.wiki/0/03/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_lethaniaShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon lethaniaShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV11.png",
+      "name": "精准",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV11",
+      "sha256": "bb5b0864920c762a8819df14ba777d9ad165e1a00a9cf497f5180c6f11b58327",
+      "image_url": "https://media.prts.wiki/b/bc/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_preciShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon preciShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV12.png",
+      "name": "迅捷",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV12",
+      "sha256": "dbb9be7df244b4730e7a0e12f07437699312f0127fa3bedaae230b71fb5233a2",
+      "image_url": "https://media.prts.wiki/d/da/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_swiftShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon swiftShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV13.png",
+      "name": "灵巧",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV13",
+      "sha256": "c97e9707059266727211e55474097fd66633f7af4e076f2ea437bae827b0465a",
+      "image_url": "https://media.prts.wiki/7/7d/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_skillfulShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon skillfulShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV14.png",
+      "name": "坚守",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV14",
+      "sha256": "2cdc65970b8bc2c0986a2ecf20ab9f8510ac03317cf60ac788b25fe830ffb1bc",
+      "image_url": "https://media.prts.wiki/1/17/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_steadShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon steadShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV15.png",
+      "name": "助力",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV15",
+      "sha256": "4157b95656adb79e8bcd0347912216be5d178e17c6a7e3ded6adef15a04022ac",
+      "image_url": "https://media.prts.wiki/f/f9/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_deputShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon deputShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV16.png",
+      "name": "远见",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV16",
+      "sha256": "399b90c8bf4d6e8dd6f8353e51a52f7b0c13aef2ce0aefa1bdcbe6a95ee35d37",
+      "image_url": "https://media.prts.wiki/8/82/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_visiShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon visiShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV17.png",
+      "name": "奇迹",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV17",
+      "sha256": "678209d693f7d3bf7a91dcfcb16ac34cd742ce7aba20bd9b89d3054a37735030",
+      "image_url": "https://media.prts.wiki/f/fe/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_miraShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon miraShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV18.png",
+      "name": "投资人",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV18",
+      "sha256": "0ec25275f7009368c6e3693739504dc35b02e088468ec2f677a79db73e35ec58",
+      "image_url": "https://media.prts.wiki/e/e0/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_investShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon investShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV19.png",
+      "name": "突袭",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV19",
+      "sha256": "09045ef63e47cb8ad4e7aaae86452f4303d38ee742f5048a4ae489db330f71db",
+      "image_url": "https://media.prts.wiki/a/ae/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_raidShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon raidShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV20.png",
+      "name": "不屈",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV20",
+      "sha256": "cf6a946e2128b8804cd6d9333d31fbaafa0c4cd83645a4af121ba909db595d0b",
+      "image_url": "https://media.prts.wiki/a/a1/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_indomShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon indomShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV21.png",
+      "name": "调和",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV21",
+      "sha256": "a334a719f0d01ac8f1e9ccd4144735b2b04aaf3cc19e8c7fa9681d4d2b36643a",
+      "image_url": "https://media.prts.wiki/c/c6/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_maniShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon maniShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV22.png",
+      "name": "协防干员",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV22",
+      "sha256": "e95ec4d17a9f03a60261f5f569363a47b1826162ba7866ba5b76c071c43d9420",
+      "image_url": "https://media.prts.wiki/5/5b/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_emptyShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon emptyShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV23.png",
+      "name": "独行",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV23",
+      "sha256": "31045b3d94b6f861166ccc9d984b16311e21d6cb21ef7317281b13c85b05050d",
+      "image_url": "https://media.prts.wiki/e/e0/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_soloShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon soloShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV24.png",
+      "name": "绝技",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV24",
+      "sha256": "b1041735b105ef82909f93c658400228988a9b14021e5492542a8f884c2642dc",
+      "image_url": "https://media.prts.wiki/d/dc/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_suntShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon suntShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV25.png",
+      "name": "聚合",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV25",
+      "sha256": "f54655544acdcdf9d7209765943af120c9b4b08ba825c5d563faaa6423699ea4",
+      "image_url": "https://media.prts.wiki/a/ae/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_docShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon docShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "prts/CV26.png",
+      "name": "奥术",
+      "kind": "additional",
+      "source": "PRTS",
+      "covenant_id": "CV26",
+      "sha256": "c739e66760ec99cb6bf02dfc6198614fbc979e7e8c4e1f27a38c31732c60d4f5",
+      "image_url": "https://media.prts.wiki/f/f5/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_arcaneShip.png",
+      "file_title": "文件:卫戍协议：盟约 icon arcaneShip.png",
+      "collected_on": "2026-11-14",
+      "size": [
+        132,
+        132
+      ]
+    },
+    {
+      "file": "header-core.png",
+      "name": "核心盟约",
+      "kind": "anchor",
+      "source": "screenshot-layout-anchor",
+      "rect": [
+        158,
+        235,
+        74,
+        74
+      ],
+      "sha256": "49571432cb0f46f0a9a05b072b39fb5428252f3b4ae83f655793945a4acd46c5"
+    },
+    {
+      "file": "header-additional.png",
+      "name": "附加盟约",
+      "kind": "anchor",
+      "source": "screenshot-layout-anchor",
+      "rect": [
+        158,
+        613,
+        74,
+        74
+      ],
+      "sha256": "4c55e841696d3f2a35a6cc33fa725b4c7aeba6125f4e13d02fed8198daa9f17b"
+    },
+    {
+      "file": "header-ban.png",
+      "name": "本局禁用干员",
+      "kind": "anchor",
+      "source": "screenshot-layout-anchor",
+      "rect": [
+        171,
+        1255,
+        70,
+        70
+      ],
+      "sha256": "3cb1db02220e4fb437b968af6f4e8a938d4ea6067d1ba6f9ea969e1b3b2884ed"
+    },
+    {
+      "file": "ready.png",
+      "name": "准备入口",
+      "kind": "anchor",
+      "source": "screenshot-layout-anchor",
+      "rect": [
+        2079,
+        1295,
+        58,
+        58
+      ],
+      "sha256": "c4e662ac919b8e73b0a0127685aad47111008486fd44a2699b667808856ea16f"
+    }
+  ],
+  "source": "26 PRTS original alpha PNGs from local SQLite; four screenshot layout anchors only.",
+  "database": "outputs/regulation_covenant_icons_2026-11-14/卫戍协议_规程_盟约图标数据库.sqlite",
+  "database_sha256": "ebcebc4b2aca3b1af8263e31e3fbbaef3c020ee1fd64d3ca4df5306ba3fbdd98",
+  "sources": [
+    {
+      "title": "卫戍协议·规程/PRTS盟约记录",
+      "url": "https://prts.wiki/w/%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%C2%B7%E8%A7%84%E7%A8%8B/PRTS%E7%9B%9F%E7%BA%A6%E8%AE%B0%E5%BD%95",
+      "type": "规程盟约名称与图标对应页",
+      "revision_id": 450300
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon yanShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_yanShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon sargonShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_sargonShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon victoriaShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_victoriaShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon kjeragShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_kjeragShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon egirShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_egirShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon siracusaShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_siracusaShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon kazimierzShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_kazimierzShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon ursusShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_ursusShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon iberiaShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_iberiaShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon lethaniaShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_lethaniaShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon preciShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_preciShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon swiftShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_swiftShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon skillfulShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_skillfulShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon steadShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_steadShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon deputShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_deputShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon visiShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_visiShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon miraShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_miraShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon investShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_investShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon raidShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_raidShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon indomShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_indomShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon maniShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_maniShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon emptyShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_emptyShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon soloShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_soloShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon suntShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_suntShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon docShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_docShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    },
+    {
+      "title": "文件:卫戍协议：盟约 icon arcaneShip.png",
+      "url": "https://prts.wiki/w/%E6%96%87%E4%BB%B6:%E5%8D%AB%E6%88%8D%E5%8D%8F%E8%AE%AE%EF%BC%9A%E7%9B%9F%E7%BA%A6_icon_arcaneShip.png",
+      "type": "图标文件页",
+      "revision_id": null
+    }
+  ],
+  "database_metadata": {
+    "title": "\"卫戍协议·规程 盟约图标独立数据库\"",
+    "schema_version": "\"1.0\"",
+    "version": "\"卫戍协议·规程·序列Ⅰ\"",
+    "collected_on": "\"2026-11-14\"",
+    "covenant_count": "26",
+    "core_count": "10",
+    "additional_count": "16",
+    "storage": "\"icons.image_png直接存储原始PNG，SQLite文件可独立迁移。\"",
+    "mapping_note": "\"逐项采用PRTS规程页当前实际显示的图标；原站文件名沿用“卫戍协议：盟约”，不代表引用旧版本盟约效果。\"",
+    "game_database_sha256": "\"e8e0e59dae1477437d78bddb8cbd16e797591ed8d2ad48b6ed80a7cb97017025\"",
+    "mapping_page_revision_id": "450300",
+    "image_note": "\"原始图片未经缩放、裁剪或重新编码；保存原始透明通道。\"",
+    "source_note": "\"全部采用的网页均入库，不含本地网页。\"",
+    "copyright": "\"图片来自PRTS Wiki，游戏素材版权归鹰角网络及相关权利人。\""
+  },
+  "identity_method": "alpha silhouette gradient magnitude; independent of lit/grey foreground polarity",
+  "copyright": "图片来自 PRTS Wiki，游戏素材版权归鹰角网络及相关权利人。"
+}

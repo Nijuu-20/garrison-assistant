@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "operators": 143,
+  "models": 282,
+  "templates": 2788,
+  "descriptors": 405165,
+  "queries": 336485,
+  "source_sha256": "1b9ca6ccc9acaccc703081b6340153669a02b960ed0c3b4d867e746e5b7454ff",
+  "source_name": "卫戍协议_规程_战场小人数据库.sqlite",
+  "phase": "整备待机",
+  "default_skins_only": true,
+  "independent_summons": false,
+  "bytes": 109916605
+}

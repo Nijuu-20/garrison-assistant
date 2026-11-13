@@ -1,0 +1,3 @@
+# Install with --no-deps: the main requirements provide cv2 through its
+# headless wheel. Installing two OpenCV distributions overwrites that module.
+windows-capture==2.0.1
