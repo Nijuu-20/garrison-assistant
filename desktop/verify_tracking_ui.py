@@ -14,6 +14,7 @@ from garrison.coach import normalize_result
 from garrison.hud import locate,price_badges
 from garrison.storage import Storage
 from garrison.tracking import item_key
+from garrison.strategy import local_plan
 from garrison.tracking_view import paint_matches
 from garrison import __version__
 app=QApplication([])
@@ -28,7 +29,7 @@ try:
     entries+=[{'kind':'equipment','name':'炎国短刀','reason':'候选装备说明只在选项提示中显示'}, {'kind':'equipment','name':'维式重锤','reason':'补充攻击力'}]
     w.ai_result=normalize_result({'goal':'先补齐缺口，再决定升级或保留资金。','actions':[],
         'assessment':'围绕当前目标逐步补强；下方候选可按需要追踪。','recommendation_list':entries},w.db,w.store.state)
-    w.ai_result['fingerprint']=fingerprint(w.store.state);w.ai_toggle.setChecked(True);w.refresh_all();w.show_overlay();w.navigate(8,False);events()
+    w.ai_result['fingerprint']=fingerprint(w.store.state);w.ai_toggle.setChecked(True);w.refresh_all();w.show_overlay();w.navigate('analysis',False);events()
     check('recommendation list separate from prose',len(w.ai_choices.buttons)==5 and '炎国短刀' not in w.ai_output.toPlainText() and '炎国短刀' not in w.overlay.content.text())
     check('short wrapped list has all rows visible',w.overlay.tracking_choices.area.verticalScrollBar().maximum()==0)
     check('choices below analysis and before targets',w.overlay.advice_layout.indexOf(w.overlay.analysis_box)<w.overlay.advice_layout.indexOf(w.overlay.tracking_choices)<w.overlay.advice_layout.indexOf(w.overlay.goal))
@@ -63,7 +64,8 @@ try:
     check('unchanged refresh reuses controls',all(pins.buttons[k] is b for k,b in old_buttons.items()))
     w.tracked=original;w.overlay.resize(410,720);w.refresh_tracking();events()
     saved=copy.deepcopy(w.tracked);w.store.state['gold']=3;w.refresh_all()
-    check('stale AI options hidden but pins preserved',not w.ai_choices.buttons and w.tracked==saved)
+    local_keys={item_key(i) for i in local_plan(w.db,w.store.state)['recommendation_list']}
+    check('stale AI switches to current local lineup and preserves pins',bool(local_keys) and set(w.ai_choices.buttons)==local_keys and w.overlay.activity.text()=='本地攻略' and w.tracked==saved)
     w.ai_toggle.setChecked(False);check('AI off keeps manual tracking',len(w.overlay.tracking_pins.buttons)==3)
     # Rebuild current geometry from cached OCR words + actual price badges.
     root=HERE/'build/recognition-real';game=cv2.cvtColor(np.array(Image.open(root/'pc-level6.png').convert('RGB')),cv2.COLOR_RGB2BGR)
@@ -76,7 +78,7 @@ try:
     # Pure render of real fixture; does not touch the desktop.
     rgb=cv2.cvtColor(game,cv2.COLOR_BGR2RGB);h,ww=rgb.shape[:2];im=QImage(rgb.data,ww,h,rgb.strides[0],QImage.Format.Format_RGB888).copy()
     painter=QPainter(im);paint_matches(painter,QRectF(0,0,ww,h),w.canvas.tracking_regions);painter.end();im.save(str(OUT/'shop-tracking.png'))
-    w.navigate(7,False);w.recognition_tabs.setCurrentIndex(0);events();w.grab().save(str(OUT/'preview-tracking.png'))
+    w.navigate('recognition',False);w.recognition_tabs.setCurrentIndex(0);events();w.grab().save(str(OUT/'preview-tracking.png'))
     w.toggle_tracking(entries[3]);check('cancel immediately removes equipment box',all(m['kind']=='operator' for m in w.canvas.tracking_regions));w.toggle_tracking(entries[3])
     # Exercise native-window guards against a fake target; no OS manipulation.
     target={'hwnd':12345,'pid':6789};w.window_combo.blockSignals(True);w.window_combo.addItem('测试窗口',target);w.window_combo.setCurrentIndex(w.window_combo.count()-1);w.window_combo.blockSignals(False)

@@ -212,8 +212,10 @@ def describe(db,opening,target='',compact_view=False):
     if mode=='solo' and not core_unrestricted(opening):lines.append('当前高亮：'+side.get(opening.get('selected'),'待确认'))
     rec=recommendation(db,opening,target)
     if rec:
-        lines+=['起步推荐：'+(side[rec['side']] if rec['side'] else '两组接近，按目标盟约选择')+('（图标未齐，暂定）' if rec['provisional'] else '')]
+        confirmed=opening.get('_confirmed') and opening.get('selected') in side
+        lines+=['当前锁定：'+side[opening['selected']]+'，以下沿用本组。'] if confirmed else ['起步推荐：'+(side[rec['side']] if rec['side'] else '两组接近，按目标盟约选择')+('（图标未齐，暂定）' if rec['provisional'] else '')]
         for item in rec['groups']:
+            if confirmed and item['side']!=opening['selected']:continue
             if compact_view and rec['side'] and item['side']!=rec['side']:continue
             lines+=['\n'+side[item['side']]+' / '+' · '.join(item['covenants']),*item['reasons']]
             if item['route']:lines.append('起步候选：'+'、'.join(item['route']['operators']))

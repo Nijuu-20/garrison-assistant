@@ -5,14 +5,14 @@ import time
 
 
 class GraphicsSession:
-    def __init__(self, hwnd, factory=None):
+    def __init__(self, hwnd, factory=None, draw_border=False):
         if factory is None:
             from windows_capture import WindowsCapture
             factory=WindowsCapture
-        self.hwnd=hwnd;self.condition=threading.Condition();self.frame=None
+        self.hwnd=hwnd;self.draw_border=draw_border;self.condition=threading.Condition();self.frame=None
         self.updated=0.;self.closed=False;self.control=None
         self.capture=factory(window_hwnd=hwnd,monitor_index=None,window_name=None,
-                             cursor_capture=False,draw_border=None,minimum_update_interval=250)
+                             cursor_capture=False,draw_border=draw_border,minimum_update_interval=250)
         @self.capture.event
         def on_frame_arrived(frame, control):
             with self.condition:

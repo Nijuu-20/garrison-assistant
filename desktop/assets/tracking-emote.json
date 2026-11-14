@@ -1,0 +1,130 @@
+{
+  "source": "tracking-emote-preview-v4-before-cutout.png",
+  "output": "tracking-emote.png",
+  "method": "User-authorized precise alpha silhouette cutout",
+  "crop": [
+    134,
+    103,
+    1211,
+    913
+  ],
+  "outline": [
+    [
+      150,
+      701
+    ],
+    [
+      344,
+      896
+    ],
+    [
+      746,
+      896
+    ],
+    [
+      940,
+      702
+    ],
+    [
+      941,
+      670
+    ],
+    [
+      966,
+      668
+    ],
+    [
+      1006,
+      628
+    ],
+    [
+      1012,
+      616
+    ],
+    [
+      1025,
+      566
+    ],
+    [
+      1043,
+      509
+    ],
+    [
+      1156,
+      508
+    ],
+    [
+      1190,
+      475
+    ],
+    [
+      1193,
+      467
+    ],
+    [
+      1169,
+      442
+    ],
+    [
+      1162,
+      440
+    ],
+    [
+      1017,
+      440
+    ],
+    [
+      1016,
+      436
+    ],
+    [
+      1021,
+      425
+    ],
+    [
+      1024,
+      409
+    ],
+    [
+      1021,
+      404
+    ],
+    [
+      1009,
+      393
+    ],
+    [
+      942,
+      393
+    ],
+    [
+      940,
+      391
+    ],
+    [
+      940,
+      316
+    ],
+    [
+      746,
+      121
+    ],
+    [
+      346,
+      121
+    ],
+    [
+      150,
+      317
+    ]
+  ],
+  "size": [
+    1077,
+    810
+  ],
+  "foreground_rgb_preserved": true,
+  "outside_silhouette_fully_transparent": true,
+  "direction": "right",
+  "hand": "overlapping frame with local shadow",
+  "scanlines": "unchanged from the moderate-width generated revision"
+}

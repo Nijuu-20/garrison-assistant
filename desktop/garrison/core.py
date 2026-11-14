@@ -83,7 +83,7 @@ class Database:
 def new_state():
     return {'schema': 1, 'session_id': str(uuid.uuid4()), 'name': '未命名阵容',
             'round': None, 'phase': '未知', 'gold': None, 'level': None,
-            'upgrade_cost': None, 'refresh_cost': None, 'target': '', 'units': [],
+            'upgrade_cost': None, 'refresh_cost': None, 'target': '', 'route_lock': '', 'units': [],
             'shop': [], 'inventory': [], 'stacks': {}, 'ursas_fixed': 0,
             'ursas_temporary': 0, 'strategies': [], 'command_uses': {},
             'command_cooldowns': {}, 'carry_gold': False, 'notes': '',
@@ -106,6 +106,9 @@ def validate_state(state, db):
             result[k] = copy.deepcopy(state[k])
     from .opening import validate as validate_opening
     validate_opening(result['opening'],db)
+    from .strategy import route_identity
+    if result['route_lock'] and (not isinstance(result['route_lock'],str) or not route_identity(result['route_lock'])):
+        raise ValueError('锁定攻略路线无效')
     seen = set()
     for u in result['units']:
         if u.get('op_id') not in db.ops or u.get('zone') not in ('field', 'bench'):
@@ -146,17 +149,38 @@ def validate_state(state, db):
 def fingerprint(state):
     keys = ('session_id', 'round', 'phase', 'gold', 'level', 'upgrade_cost', 'refresh_cost',
             'target', 'units', 'shop', 'inventory', 'stacks', 'ursas_fixed', 'ursas_temporary',
-            'strategies', 'command_uses', 'command_cooldowns', 'carry_gold', 'recognized_offers', 'opening')
+            'strategies', 'command_uses', 'command_cooldowns', 'carry_gold', 'recognized_offers', 'opening', 'route_lock')
     payload={k:state.get(k) for k in keys}
     # Idle motion and tracker IDs do not change tactical state.
     payload['units']=[{k:v for k,v in u.items() if k not in ('sprite_rect','recognition_key')} for u in state.get('units',[])]
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
+def roster_review_note(state):
+    pending=sum(bool(u.get('sprite_missing')) for u in state['units'])
+    if pending:
+        return f'{pending} 名干员暂未重新识别，沿用最后确认的阵容与位置计算盟约和路线，结果待核对；不表示这些干员已经离场。'
+    return ''
+
+
+def shop_review_note(state):
+    pending=state['field_meta'].get('shop_snapshot',{}).get('pending_slots',[])
+    return ('商店第 '+ '、'.join(str(i+1) for i in pending)+' 格待确认，以下只根据已确认商品提供建议。') if pending else ''
+
+
+def pending_shop_field(state,key):
+    snapshot=state['field_meta'].get('shop_snapshot',{})
+    return (snapshot.get('partial') and not snapshot.get('uncertain')
+            and key.startswith(('shop:','offer:','cost:'))
+            and key.split(':')[1] in {str(i) for i in snapshot.get('pending_slots',[])})
+
+
 def covenant_status(db, state):
     from .opening import availability
     allowed={oid for oid,v in availability(db,state['opening']).items() if v['status']=='available'} if state.get('opening') else set(db.ops)
-    units=[u for u in state['units'] if not u.get('sprite_missing')]
+    # Missing observations leave the last confirmed roster intact. Its
+    # contribution is provisional, not evidence that a member left the team.
+    units=state['units']
     field = [u for u in units if u['zone'] == 'field']
     harmony = any('调和' in db.ops[u['op_id']]['covenants'] for u in field)
     result = []
@@ -173,8 +197,13 @@ def covenant_status(db, state):
             count = sum('独行' in db.ops[u['op_id']]['covenants'] for u in field)
             effective = count; active = count == 1
         next_t = next((t for t in thresholds if effective < t), None)
+        contributing=field if c['name']=='绝技' else [u for u in source if c['name'] in db.ops[u['op_id']]['covenants']]
+        if bonus:contributing=contributing+[u for u in field if '调和' in db.ops[u['op_id']]['covenants']]
+        pending=sorted({u['uid'] for u in contributing if u.get('sprite_missing')})
         result.append({**c, 'count': count, 'effective': effective, 'bonus': bonus, 'active': active,
                        'next': next_t, 'members_present': sorted(members),
+                       'needs_review':bool(pending),'pending_uids':pending,
+                       'count_basis':'last_confirmed_roster' if pending else 'confirmed_members',
                        'candidates': [o['operator_id'] for o in db.ops.values() if c['name'] in o['covenants'] and o['operator_id'] not in members and o['operator_id'] in allowed]})
     return sorted(result, key=lambda c: (-c['active'], -c['effective'], c['covenant_id']))
 
@@ -257,6 +286,7 @@ def recommend(db, state, shop_only=False):
         cost = cost_for(db, state, oid, item.get('cost'))
         affordable = state['gold'] is not None and state['gold'] >= cost
         if not reasons: reasons = ['补充战斗能力，需结合当前生存与输出需求']
+        if any(c['needs_review'] for c in before.values()):reasons.append('盟约收益沿用上次确认阵容，待核对')
         ranked.append({'op_id': oid, 'name': op['name'], 'score': score, 'cost': cost,
                        'cost_confirmed': item.get('cost') is not None,
                        'affordable': affordable, 'reasons': reasons, 'changes': changes, 'slot': index})

@@ -27,7 +27,7 @@ try:
     s['opening']=recompute(w.db,{'mode':'coop','selected':None,'groups':{},
         'core':[{'name':c['name'],'state':'lit'} for c in w.db.covenants if c['type']=='核心盟约'],
         'additional':[{'name':c['name'],'state':'lit'} for c in w.db.covenants if c['type']!='核心盟约']})
-    w.store.state=s;w.refresh_all();w.show_overlay();w.navigate(8,False);events()
+    w.store.state=s;w.refresh_all();w.show_overlay();w.navigate('analysis',False);events()
     check('AI off uses authored local advice',not w.settings['ai_enabled'] and w.coach.calls==0 and '低本卡西米尔' in w.ai_output.toPlainText() and w.overlay.activity.text()=='本地攻略')
     check('local advice supplies trackable equipment',any('精准狙击镜' in b.text() for b in w.ai_choices.buttons.values()))
     check('source credits link to registered author pages','某中二的鸽子' in w.overlay.sources.text() and 'BV1SNWe6gEvP' in w.overlay.sources.text())
@@ -48,7 +48,7 @@ try:
     # Two fictitious provider profiles and test-only DPAPI keys.
     w.settings['ai_profiles']=[{'id':pid,'name':name,'url':'https://example.invalid/v1','model':'mock'} for pid,name in [('delete-me','测试配置 A'),('keep-me','测试配置 B')]]
     w.settings['ai_profile']='delete-me';w.storage.save_key('delete-me','test-only-A');w.storage.save_key('keep-me','test-only-B');w.fill_ai_profiles()
-    coach_page=w.stack.widget(8);tabs=coach_page.findChildren(type(w.recognition_tabs));tabs[0].setCurrentIndex(1);events();w.grab().save(str(OUT/'api-delete-button.png'))
+    w.navigate('api',False);events();w.grab().save(str(OUT/'api-delete-button.png'))
     w.api_delete_button.click();check('cancel API deletion preserves selection and key',len(w.settings['ai_profiles'])==2 and w.storage.get_key('delete-me')=='test-only-A')
     answer[0]=QMessageBox.StandardButton.Yes;w.request_cancel=threading.Event();generation=w.ai_generation;w.ai_toggle.setChecked(True)
     w.api_delete_button.click();events()
@@ -56,7 +56,7 @@ try:
     check('delete cancels requests and clears AI state',w.request_cancel.is_set() and w.ai_generation>generation and not w.settings['ai_enabled'] and w.ai_result is None)
     check('deleted API selection cleared and button disabled',w.ai_profile_combo.currentData()=='' and not w.api_delete_button.isEnabled() and not w.api_key.text())
     persisted=Storage();check('API deletion survives reload',[p['id'] for p in persisted.settings['ai_profiles']]==['keep-me'])
-    w.navigate(6,False);index=next(i for i,g in enumerate(w.guide_entries) if g.get('route_id')=='R02');w.guide_list.setCurrentRow(index);events();w.grab().save(str(OUT/'guide-delete-button.png'))
+    w.navigate('guides',False);index=next(i for i,g in enumerate(w.guide_entries) if g.get('route_id')=='R02');w.guide_list.setCurrentRow(index);events();w.grab().save(str(OUT/'guide-delete-button.png'))
     answer[0]=QMessageBox.StandardButton.No;w.guide_delete_button.click();check('cancel guide deletion changes nothing',len(w.builtin_guides)==11 and not w.settings['disabled_guide_routes'])
     answer[0]=QMessageBox.StandardButton.Yes;w.guide_delete_button.click();events()
     check('deleted route removed from UI and local retrieval',len(w.builtin_guides)==10 and not any(m['route_id']=='R02' for m in route_matches(w.db,s,20)))

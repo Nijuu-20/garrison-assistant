@@ -6,6 +6,58 @@ must agree before a proposal becomes a reading region.
 from __future__ import annotations
 import cv2
 import numpy as np
+from functools import lru_cache
+from pathlib import Path
+import sys
+
+
+@lru_cache(maxsize=1)
+def level_capsule_template():
+    root=Path(sys._MEIPASS) if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[1]
+    path=root/'assets/hud/level-capsule.png'
+    if not path.is_file():return None
+    image=cv2.imdecode(np.fromfile(path,np.uint8),cv2.IMREAD_GRAYSCALE)
+    return cv2.resize(image,(96,32)) if image is not None else None
+
+
+def is_level_capsule(crop):
+    """Verify both the capsule silhouette and its interior LEVEL glyphs."""
+    template=level_capsule_template()
+    if template is None or not crop.size:return False
+    sample=cv2.resize(cv2.cvtColor(crop,cv2.COLOR_BGR2GRAY),(96,32))
+    whole=float(cv2.matchTemplate(sample,template,cv2.TM_CCOEFF_NORMED)[0,0])
+    # At 720p the capsule is only ~13 pixels tall. Permit a small alignment
+    # shift inside the contour, but still require the actual interior glyphs.
+    inside=float(cv2.matchTemplate(sample[3:28,10:86],template[7:23,16:80],cv2.TM_CCOEFF_NORMED).max())
+    return whole>=.92 and inside>=.84
+
+
+def roman_ink(crop):
+    gray=cv2.cvtColor(crop,cv2.COLOR_BGR2GRAY)
+    _,ink=cv2.threshold(gray,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    return cv2.resize(ink,(96,72),interpolation=cv2.INTER_AREA)
+
+
+@lru_cache(maxsize=1)
+def roman_templates():
+    root=Path(sys._MEIPASS) if getattr(sys,'frozen',False) else Path(__file__).resolve().parents[1]
+    result={}
+    for level in range(1,6):
+        path=root/f'assets/hud/roman-{level}.png'
+        if not path.is_file():continue
+        crop=cv2.imdecode(np.fromfile(path,np.uint8),cv2.IMREAD_COLOR)
+        if crop is not None:result[level]=roman_ink(crop)
+    return result
+
+
+def roman_image(crop):
+    """Corroborate OCR against all five non-maximal Roman shapes."""
+    if not crop.size or len(roman_templates())!=5:return None
+    sample=roman_ink(crop)
+    if sample.std()<10:return None
+    sample=cv2.copyMakeBorder(sample,4,4,4,4,cv2.BORDER_CONSTANT)
+    scores=sorted([(float(cv2.matchTemplate(sample,t,cv2.TM_CCOEFF_NORMED).max()),level) for level,t in roman_templates().items()],reverse=True)
+    return scores[0][1] if scores[0][0]>=.90 and scores[0][0]-scores[1][0]>=.08 else None
 
 
 def rect(x, y, w, h):
@@ -71,6 +123,63 @@ def refine_refresh(frame, regions):
             if distance<.025:region['rect']=rect(*box)
 
 
+def level_label_candidates(frame, words):
+    """Propose the small LEVEL capsule above this frame's upgrade button.
+
+    Geometry only proposes crops; the recognizer must verify the label image
+    or LEVEL in two enlarged views. No level value or cached position is used.
+    """
+    upgrades=[a for a in words if a['text'].strip()=='升级' and a['y']>.55 and a['confidence']>=.9]
+    if len(upgrades)!=1:return []
+    x,y,bw,bh=upgrades[0]['rect'];height,width=frame.shape[:2]
+    x1=max(0,int((x-bw*.7)*width));x2=min(width,int((x+bw*1.7)*width))
+    y1=max(0,int((y-bh*5)*height));y2=min(height,int((y-bh*1.2)*height))
+    if x2<=x1 or y2<=y1:return []
+    gray=cv2.cvtColor(frame[y1:y2,x1:x2],cv2.COLOR_BGR2GRAY)
+    found=[]
+    for threshold in (45,65,85):
+        mask=cv2.inRange(gray,0,threshold)
+        for c in cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0]:
+            px,py,pw,ph=cv2.boundingRect(c)
+            cx=(x1+px+pw/2)/width
+            if not (2.4<pw/ph<4.8 and .55*bw*width<pw<1.6*bw*width and .25*bh*height<ph<.95*bh*height):continue
+            if abs(cx-(x+bw/2))>bw*.25 or cv2.contourArea(c)/(pw*ph)<.55:continue
+            box=[(x1+px)/width,(y1+py)/height,pw/width,ph/height]
+            if any(abs(box[0]-b[0])<.004 and abs(box[1]-b[1])<.004 for b in found):continue
+            found.append(box)
+    return found[:3]
+
+
+def refine_upgrade_cost(frame, regions, words, badges):
+    """Recover a silver cost medal only beside a verified LEVEL anchor.
+
+    The funds/card row bounds the search. Dark interior geometry proposes a
+    crop; numeric multi-view voting remains responsible for reading its cost.
+    """
+    if any(r['key']=='upgrade_cost' for r in regions):return
+    levels=[a for a in words if a['text'].strip().upper()=='LEVEL' and a['y']>.55 and a['confidence']>=.9]
+    anchors=[b for b in badges if b[1]>.65]
+    if len(levels)!=1 or not anchors:return
+    level=levels[0];cx=level['x'];row=float(np.median([b[1] for b in anchors]))
+    if not .015<level['rect'][1]-row<.13:return
+    h,w=frame.shape[:2]
+    x1=max(0,int((cx-.035)*w));x2=min(w,int((cx+.035)*w))
+    y1=max(0,int((row-.015)*h));y2=min(h,int((row+.065)*h))
+    if x2<=x1 or y2<=y1:return
+    gray=cv2.cvtColor(frame[y1:y2,x1:x2],cv2.COLOR_BGR2GRAY)
+    proposals=[]
+    for threshold in (60,75,90,100,110):
+        mask=cv2.inRange(gray,0,threshold)
+        mask=cv2.morphologyEx(mask,cv2.MORPH_CLOSE,np.ones((max(2,round(h/480)),)*2,np.uint8))
+        for c in cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[0]:
+            x,y,bw,bh=cv2.boundingRect(c);px=(x+x1+bw/2)/w;py=(y+y1+bh/2)/h
+            if x<=0 or y<=0 or x+bw>=gray.shape[1] or y+bh>=gray.shape[0]:continue
+            if not (.012*h<bh<.045*h and 1.05<bw/bh<2.05 and cv2.contourArea(c)/(bw*bh)>.43):continue
+            if abs(px-cx)>.009 or not row<py<row+.04:continue
+            proposals.append((abs(px-cx)+abs(py-(row+.018)),rect((x1+x-bw*.06)/w,(y1+y-bh*.1)/h,bw*1.12/w,bh*1.2/h)))
+    if proposals:regions.append({'key':'upgrade_cost','rect':min(proposals,key=lambda a:a[0])[1]})
+
+
 def locate(words, badges, db, aspect=16/9):
     """Return per-frame regions, including unreadable visible shop slots.
 
@@ -122,7 +231,7 @@ def locate(words, badges, db, aspect=16/9):
     elif not maximum: notes.append('升级费用标记未定位。')
     x,y,bw,bh = refresh['rect']
     # The cost medal is centred above the refresh button, left of the text centre.
-    add('refresh_cost', [x-bh/aspect*.45,y-bh*.85,bh/aspect*.95,bh*.90])
+    add('refresh_cost', [x-bh/aspect*.45,y-bh*.85,bh/aspect*.95,bh*.90],medal=True)
     # Wide money badges must be adjacent to the shop row, not a top HUD counter.
     wide = [b for b in badges if b[2]*aspect/b[3] > 2.5 and b[1] > .65]
     money = max(wide,key=lambda b:b[0],default=None)
@@ -155,23 +264,28 @@ def locate(words, badges, db, aspect=16/9):
         name_word=max(matches,key=lambda a:a['y'],default=None)
         if name_word:used.append(name_word)
         equipment=bool(name_word and name_word['text'].strip() in db.equipment)
-        key=f'offer:{i}' if equipment or not name_word else f'shop:{i}'
+        key=f'item:{i}' if not name_word else f'offer:{i}' if equipment else f'shop:{i}'
         if name_word:
             nx,ny,nw,nh=name_word['rect']
             add(key,[nx-nh*.04,ny-nh*.05,nw+nh*.08,nh*1.1], seed=name_word, offer=True)
         else:
-            add(key,[left,min(.94,row_y+.18),right-left,.045],offer=True)
+            # Failed global OCR does not establish that the card is equipment.
+            # Follow neighbouring name plates and retry both identity pools.
+            name_y=float(np.median([a['rect'][1] for a in candidates])) if candidates else min(.94,row_y+.18)
+            name_h=float(np.median([a['rect'][3] for a in candidates])) if candidates else .025
+            add(key,[left+pitch*.13,name_y-name_h*.14,pitch*.82,name_h*1.3],offer=True)
         add(f'cost:{i}',digit_box(b))
         bottom=(ny+nh+.02) if name_word else min(1,row_y+.24)
         slots.append({'slot':i,'key':key,'kind':'equipment' if equipment else 'operator' if name_word else 'unknown',
                       'rect':rect(left,row_y-.008,right-left,bottom-row_y+.008)})
-    shop_valid=bool(cards) and len(used)==len(cards) and len({id(a) for a in used})==len(used)
-    if any(a not in used for a in candidates):shop_valid=False
+    grid_valid=bool(cards) and len({id(a) for a in used})==len(used)
+    if any(a not in used for a in candidates):grid_valid=False
     if len(cards)>2:
         gaps=np.diff([b[0]+b[2]/2 for b in cards])
-        if max(gaps)>min(gaps)*1.45:shop_valid=False
+        if max(gaps)>min(gaps)*1.45:grid_valid=False
+    shop_valid=grid_valid and len(used)==len(cards)
     if not shop_valid:notes.append('商品或费用标记不完整，暂不替换商店。')
-    return {'regions':regions,'valid':True,'notes':notes,'slots':slots,'shop_valid':shop_valid}
+    return {'regions':regions,'valid':True,'notes':notes,'slots':slots,'shop_valid':shop_valid,'grid_valid':grid_valid}
 
 
 def roman_bars(crop):
@@ -192,7 +306,9 @@ def roman_bars(crop):
         if x == 0 or y == 0 or x+bw >= w or y+bh >= h:
             if area > h*w*.1:return None
             continue
-        if not (.34*h<bh<.85*h and .13< bw/bh <.48 and area/(bw*bh)>.72):return None
+        # The CRT gradient can fade the bottom half of I/II/III; the dark
+        # connected portion then has a wider aspect than the full stroke.
+        if not (.34*h<bh<.85*h and .13< bw/bh <.62 and area/(bw*bh)>.72):return None
         bars.append((x,y,bw,bh))
     if not 1<=len(bars)<=3:return None
     if max(b[1] for b in bars)-min(b[1] for b in bars)>h*.1:return None

@@ -12,7 +12,7 @@ from garrison.core import fingerprint
 from garrison import __version__
 app=QApplication([])
 for font in ('msyh.ttc','msyhbd.ttc','segoeui.ttf'):QFontDatabase.addApplicationFont('C:/Windows/Fonts/'+font)
-w=MainWindow();w.timer.stop();w.hotkeys.clear();w.settings['reduce_motion']=True;w.navigate(2,False);w.show();app.processEvents()
+w=MainWindow();w.timer.stop();w.hotkeys.clear();w.settings['reduce_motion']=True;w.navigate('catalog',False);w.show();app.processEvents()
 d=w.catalog_detail;checks=[]
 def check(name,value):
     checks.append({'test':name,'passed':bool(value)});assert value,name

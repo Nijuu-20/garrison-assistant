@@ -43,7 +43,7 @@ class CatalogDetails(QWidget):
         self.setMinimumWidth(350);self.setSizePolicy(QSizePolicy.Policy.Ignored,QSizePolicy.Policy.Expanding)
         self.name=label('','title',True);self.state_label=label('普通 · 技能 4 级','accent')
         self.add=button('加入战场',add,True);self.compare=button('加入对比',compare)
-        self.add.setToolTip('向助手阵容添加普通干员；晋升状态可在编队工坊记录。')
+        self.add.setToolTip('向助手阵容添加普通干员；晋升状态可在首页的阵容核对中记录。')
         self.mode_buttons={}
         for elite,title in ((False,'◇ 普通'),(True,'◆ 精锐')):
             b=button(title,lambda value=elite:self.set_elite(value));b.setCheckable(True);b.setChecked(elite==self.elite)

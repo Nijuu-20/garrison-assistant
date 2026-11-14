@@ -17,9 +17,11 @@ args=[sys.executable,'-m','PyInstaller','--clean','--noconfirm','--windowed','--
       '--exclude-module','PySide6.QtWebEngineCore','--exclude-module','PySide6.QtWebEngineWidgets',
       '--exclude-module','PySide6.QtPdf','--exclude-module','tkinter',
       '--add-data',str(HERE/'assets'/'garrison-icon.png')+';assets',
+      '--add-data',str(HERE/'assets'/'tracking-emote.png')+';assets',
       '--add-data',str(HERE/'assets'/'battle-index.npz')+';assets',
       '--add-data',str(HERE/'assets'/'battle-index.json')+';assets']
 args+=['--add-data',str(HERE/'assets'/'opening')+';assets/opening']
+args+=['--add-data',str(HERE/'assets'/'hud')+';assets/hud']
 args+=['--add-data',str(HERE/'assets'/'strategy')+';assets/strategy']
 for path in [ROOT/'outputs'/'regulation_2026-11-13'/'卫戍协议_规程数据库.json',
              ROOT/'outputs'/'regulation_image_databases_2026-11-13'/'卫戍协议_规程_头像数据库.sqlite',

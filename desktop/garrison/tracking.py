@@ -1,6 +1,6 @@
 """Explicit watch lists and conservative, per-frame shop matches. No game input."""
 from __future__ import annotations
-import math
+import math,time
 import cv2
 import numpy as np
 from .core import fingerprint
@@ -77,22 +77,56 @@ def shop_observations(db,result,threshold=.92):
 
 
 class ShopWatch:
-    """Require consecutive identity AND position agreement; never reuse old slots."""
+    """Confirm identities, retain visually unchanged misses, expire each slot separately."""
     def __init__(self):self.reset()
-    def reset(self):self.previous={};self.stable=[]
-    def accept(self,db,result,threshold=.92,frames=2):
+    def reset(self):self.previous={};self.stable=[];self.reference=None;self.last_seen={};self.pixel_failures={}
+    @staticmethod
+    def key(item):return (item['slot'],item_key(item))
+    def discard(self,items):
+        keys={self.key(i) for i in items}
+        self.stable=[i for i in self.stable if self.key(i) not in keys]
+        for key in keys:
+            self.previous.pop(key,None);self.last_seen.pop(key,None);self.pixel_failures.pop(key,None)
+    def accept(self,db,result,threshold=.92,frames=2,frame=None,now=None):
+        now=time.monotonic() if now is None else now
         current={};stable=[]
         for item in shop_observations(db,result,threshold):
             key=(item['slot'],item_key(item));old=self.previous.get(key)
             same=old and max(abs(a-b) for a,b in zip(old['rect'],item['rect']))<.006
             count=old['count']+1 if same else 1
             current[key]={'rect':item['rect'],'count':count}
-            if count>=max(2,frames):stable.append(item)
+            if count>=max(2,frames):
+                prior=next((m for m in self.stable if self.key(m)==key),None)
+                if same and prior:item={**item,'rect':prior['rect']}
+                stable.append(item);self.last_seen[key]=now
+        slots={s['slot']:s for s in result.get('shop_slots',[])}
+        if frame is not None and result.get('layout_valid') and not result.get('opening'):
+            for item in self.stable:
+                key=self.key(item);slot=slots.get(item['slot'],{})
+                if key in current or any(k[0]==item['slot'] for k in current):continue
+                if (slot.get('kind')==item['kind'] and valid_rect(slot.get('rect'))
+                    and max(abs(a-b) for a,b in zip(slot['rect'],item['rect']))<.006
+                    and now-self.last_seen.get(key,0)<=6
+                    and same_shop_pixels(frame,self.reference,[item])):
+                    stable.append(item);current[key]=self.previous[key]
         self.previous=current;self.stable=stable
+        self.last_seen={self.key(i):self.last_seen[self.key(i)] for i in stable}
+        self.reference=frame.copy() if frame is not None else None
         return stable
     def matches(self,tracked):
         keys={item_key(i) for i in tracked}
         return [i for i in self.stable if item_key(i) in keys]
+    def visible_matches(self,frame,reference,matches,now=None):
+        """Two quick polls reject a marginal mismatch; a blank/changed card clears immediately."""
+        now=time.monotonic() if now is None else now;expired=[]
+        for item in matches:
+            key=self.key(item);status=shop_pixel_status(frame,reference,item)
+            if status=='same':self.pixel_failures.pop(key,None);continue
+            since=self.pixel_failures.setdefault(key,now)
+            if status=='changed' or now-since>=.35:expired.append(item)
+        self.discard(expired)
+        gone={self.key(i) for i in expired}
+        return [i for i in matches if self.key(i) not in gone]
 
 
 def sample_patch(frame,rect):
@@ -105,10 +139,19 @@ def sample_patch(frame,rect):
 
 def same_shop_pixels(frame,reference,matches):
     """Fast guard on static name plates, avoiding animated portraits and effects."""
-    if frame is None or reference is None or frame.shape!=reference.shape:return False
-    for m in matches:
-        a=sample_patch(frame,m['sample_rect']);b=sample_patch(reference,m['sample_rect'])
-        if a is None or b is None:return False
-        if np.mean(cv2.absdiff(a,b))>9:return False
-        if float(b.std())<8 or float(cv2.matchTemplate(a,b,cv2.TM_CCOEFF_NORMED)[0,0])<.94:return False
-    return bool(matches)
+    return bool(matches) and all(shop_pixel_status(frame,reference,m)=='same' for m in matches)
+
+
+def shop_pixel_status(frame,reference,item):
+    if frame is None or reference is None or frame.shape!=reference.shape:return 'changed'
+    a=sample_patch(frame,item['sample_rect']);b=sample_patch(reference,item['sample_rect'])
+    if a is None or b is None or min(float(a.std()),float(b.std()))<8:return 'changed'
+    # Ignore uniform hover brightness and up to two reduced-pixel translations.
+    template=b[2:-2,2:-2]
+    score=cv2.matchTemplate(a,template,cv2.TM_CCOEFF_NORMED)
+    _,corr,_,(x,y)=cv2.minMaxLoc(score)
+    aligned=a[y:y+template.shape[0],x:x+template.shape[1]].astype(np.float32)
+    base=template.astype(np.float32)
+    error=float(np.mean(np.abs((aligned-aligned.mean())-(base-base.mean()))))
+    if corr>=.94 and error<=14:return 'same'
+    return 'changed' if corr<.65 or error>45 else 'uncertain'

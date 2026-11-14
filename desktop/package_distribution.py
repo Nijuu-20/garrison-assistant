@@ -24,6 +24,7 @@ DATABASES=[
  'outputs/regulation_battle_models_2026-11-13/卫戍协议_规程_战场小人数据库.sqlite',
  'outputs/regulation_covenant_icons_2026-11-14/卫戍协议_规程_盟约图标数据库.sqlite']
 FIXTURES={
+ 'level-transition':['pc-level1-unaffordable.png','pc-level1-unaffordable-before.json','pc-level2.jpg','pc-level3.jpg','pc-level4.jpg','fixtures.json'],
  'opening-recognition':['solo.png','coop.png','solo-words.json','coop-words.json','solo-result.json','coop-result.json'],
  'recognition-real':['pc-round3.png','pc-level5.png','pc-level6.png','result-2048.json','pc-round3-result-2048.json','pc-level5-result-2048.json','pc-level6-result-2048.json'],
  'battle-recognition':['pc-round14.png','pc-round14-b.png','pc-round14-result.json']}

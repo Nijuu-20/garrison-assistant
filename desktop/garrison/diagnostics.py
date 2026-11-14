@@ -24,11 +24,23 @@ def run(output_path):
         result['checks']['avatar_blob']=db.image_bytes('OP001')[:8]==b'\x89PNG\r\n\x1a\n'
         result['checks']['portrait_blob']=bool(db.image_bytes('OP001','portrait'))
         result['checks']['icon_asset']=asset_path('garrison-icon.png').exists()
+        from .tracking_view import tracking_marker_pixmap
+        marker=tracking_marker_pixmap()
+        result['checks']['tracking_emote_asset']=not marker.isNull() and marker.hasAlphaChannel()
+        from .hud import level_capsule_template,roman_templates
+        result['checks']['level_capsule_asset']=level_capsule_template() is not None and len(roman_templates())==5
         from .strategy import verify_bundle,library,ai_material,local_plan
         result['checks']['authored_strategy_bundle']=verify_bundle() and len(library()['routes'])==11
         result['checks']['uploaded_skill_runtime']=bool(ai_material(db,new_state())['mechanics'])
         guide_state=new_state();guide_state['target']='卡西米尔'
         result['checks']['local_guide_recommendations']=bool(local_plan(db,guide_state)['recommendation_list'])
+        from .core import unit
+        from .coach import make_context
+        guide_state['units']=[unit(db.by_name['砾']['operator_id'])]
+        guide_state['units'][0]['sprite_missing']=True
+        pending=next(c for c in covenant_status(db,guide_state) if c['name']=='卡西米尔')
+        context=make_context(db,guide_state)
+        result['checks']['pending_roster_retained']=pending['count']==1 and pending['needs_review'] and len(context['state']['units'])==1 and context['state']['units'][0]['observation_status']=='needs_review'
         from .opening import rules,availability,recompute,confirmation_problem,apply_snapshot
         from .opening_icons import IconMatcher
         icons=IconMatcher();icons.load()
@@ -55,8 +67,10 @@ def run(output_path):
         result['checks']['offline_ocr_models']=recognized['fields'][0]['value']==18
         result['ocr_ms']=recognized['elapsed_ms']
         window=MainWindow();window.settings['reduce_motion']=True;window.show();app.processEvents()
-        result['checks']['ten_pages']=window.stack.count()==10
-        result['checks']['opening_review_tab']=window.recognition_tabs.count()==3 and hasattr(window,'opening_table')
+        result['checks']['five_pages']=window.stack.count()==5
+        result['checks']['home_four_step_controls']=len(window.home_step_cards)==4 and window.home_flow.isAncestorOf(window.window_combo) and window.home_flow.isAncestorOf(window.ai_toggle) and window.home_flow.isAncestorOf(window.home_ban_confirm) and window.home_flow.isAncestorOf(window.home_roster_confirm)
+        result['checks']['catalog_and_settings_subpages']=window.catalog_tabs.count()==5 and window.settings_tabs.count()==4 and window.settings_tabs.isAncestorOf(window.api_url) and window.settings_tabs.isAncestorOf(window.canvas)
+        result['checks']['opening_review_tab']=window.home_tabs.isAncestorOf(window.opening_table) and window.recognition_tabs.count()==2
         result['checks']['overlay_opening_confirmation']=hasattr(window.overlay,'opening_confirm') and window.settings['opening_auto_confirm']
         result['checks']['overlay_in_match_review_entry']=hasattr(window.overlay,'opening_review_button') and hasattr(window.overlay,'opening_review_cancel')
         restricted={'core':[{'name':'乌萨斯','state':'lit'}],'additional':[{'name':'突袭','state':'grey'}]}
@@ -73,8 +87,16 @@ def run(output_path):
         result['checks']['tracking_controls']=item_key(tracked) in window.ai_pins.buttons and item_key(tracked) in window.overlay.tracking_pins.buttons
         window.toggle_tracking(tracked)
         result['checks']['tracking_cancel']=item_key(tracked) not in window.ai_pins.buttons
+        window.open_tracking();picker=window.tracking_dialog;picker.core_filter.buttons['乌萨斯'].click()
+        visible=[i.data(Qt.ItemDataRole.UserRole)['op_id'] for i in picker.rows if not i.isHidden() and i.data(Qt.ItemDataRole.UserRole)['kind']=='operator']
+        result['checks']['manual_tracking_covenant_filter']=bool(visible) and all('乌萨斯' in db.ops[oid]['covenants'] for oid in visible)
+        picker.accept()
         result['checks']['transparent_shop_highlight']=window.shop_highlight.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        window.navigate(2,False);app.processEvents();rects=[window.catalog_list.visualItemRect(window.catalog_list.item(i)) for i in range(5)]
+        window.store.state=guide_state;window.refresh_all();window.overlay.route_lock.toggle.click()
+        result['checks']['route_lock_controls']=window.store.state['route_lock']=='R02' and window.ai_route_lock.toggle.text()=='解锁路线'
+        result['checks']['route_lock_ai_context']=ai_material(db,window.store.state)['locked_route']['id']=='R02'
+        window.home_route_lock.toggle.click();result['checks']['route_unlock']=not window.store.state['route_lock']
+        window.navigate('catalog',False);app.processEvents();rects=[window.catalog_list.visualItemRect(window.catalog_list.item(i)) for i in range(5)]
         detail=window.catalog_detail;window.show_operator(db.by_name['赫拉格']['operator_id']);detail.mode_buttons[True].click()
         result['checks']['catalog_pages_and_elite_switch']=detail.tabs.count()==4 and detail.elite and '24层' in detail.cap.text() and '精锐' in detail.state_label.text()
         detail.mode_buttons[False].click();result['checks']['catalog_normal_switch']='12层' in detail.cap.text() and not detail.elite

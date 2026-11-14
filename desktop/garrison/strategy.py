@@ -82,16 +82,29 @@ def safe_excerpt(db,state,text):
     return all(db.by_name[n]['operator_id'] in allowed for n in mentioned(db,text))
 
 
+def route_identity(profile_id):
+    profile=next((p for p in PROFILES if p['id']==profile_id),None)
+    if not profile:return None
+    route=next(r for r in library()['routes'] if r['id']==profile['route'])
+    variant=route['variants'][profile['variant']] if 'variant' in profile else None
+    return {'id':profile['id'],'route_id':route['id'],'title':variant['name'] if variant else route['title']}
+
+
+def lineup_planning_ready(state):
+    return (state.get('round') or 0)>=3 and state.get('phase') in ('整备','作战')
+
+
 def route_matches(db,state,limit=3):
     from .core import fingerprint
     disabled=set(getattr(db,'disabled_guide_routes',[]))
     key=(fingerprint(state),bool(state['field_meta'].get('opening_snapshot',{}).get('uncertain')),tuple(sorted(disabled)))
     cached=getattr(db,'_strategy_matches',None)
     if cached and cached[0]==key:return copy.deepcopy(cached[1][:limit])
-    allowed,banned,conditional=pool(db,state);present={u['op_id'] for u in state['units'] if not u.get('sprite_missing')}
+    allowed,banned,conditional=pool(db,state);present={u['op_id'] for u in state['units']}
     shop={x['op_id'] for x in state['shop']};commands=set(state['strategies']);routes={r['id']:r for r in library()['routes']};ranked=[]
     if not allowed:return []
     for profile in PROFILES:
+        if state.get('route_lock') and profile['id']!=state['route_lock']:continue
         if profile['route'] in disabled:continue
         route=routes[profile['route']]
         if set(profile['required'])&banned:continue
@@ -105,15 +118,21 @@ def route_matches(db,state,limit=3):
         core=[db.by_name[n]['operator_id'] for n in names if n in db.by_name and db.by_name[n]['operator_id'] in allowed]
         target=state['target'] in profile['targets'];hits=present&set(core);offers=shop&set(core)
         opening_only=bool(state.get('opening')) and not (state['target'] or present or shop or commands)
-        if not (target or hits or offers or command_hit or opening_only):continue
+        proactive=lineup_planning_ready(state)
+        if not (state.get('route_lock') or target or hits or offers or command_hit or opening_only or proactive):continue
         score=70*target+45*command_hit+14*len(hits)+6*len(offers)
+        # Round-three planning does not waive strategy or ban requirements.
+        operations=[route['operation'][i] for i in profile.get('ops',range(len(route['operation'])))]
+        transition_names=set().union(*(mentioned(db,t) for t in operations if safe_excerpt(db,state,t))) if proactive else set()
+        transition_ids=({db.by_name[n]['operator_id'] for n in transition_names}&allowed)-set(core)
+        support=present&transition_ids
+        if proactive:score+=4*len(support)
         if not hits and not target and not command_hit:
             # Opening comparison only: cheap accessible pieces, no assumed shop.
             score+=max(0,15-sum(sorted(db.ops[o]['recruit_cost'] for o in core)[:3]))
         variant=route['variants'][profile['variant']] if 'variant' in profile else None
         sources=variant['sources'] if variant else route['source_ids']
         authors=variant['authors'] if variant else route['authors']
-        operations=[route['operation'][i] for i in profile.get('ops',range(len(route['operation'])))]
         phase=0 if state['level'] is None or state['level']<=2 else 1 if state['level']<=4 else 2
         indices=STAGES[route['id']][phase]
         phase_operations=[route['operation'][i] for i in indices if i in profile.get('ops',range(len(route['operation'])))]
@@ -122,12 +141,14 @@ def route_matches(db,state,limit=3):
             'variant':variant['name'] if variant else None,'authors':authors,'source_ids':sources,'score':score,
             'core_ids':core,'targets':[n for n in profile['targets'] if n not in banned],
             'conditional':conditional,'present_ids':sorted(hits),'shop_ids':sorted(offers),
+            'lineup_planning':proactive,'transition_ids':sorted(support),
+            'needs_review':any(u.get('sprite_missing') for u in state['units']),
             'operation':[t for t in operations if safe_excerpt(db,state,t)],
             'phase_operation':[t for t in phase_operations if safe_excerpt(db,state,t)],
             'equipment':[t for t in equipment if safe_excerpt(db,state,t)],
             'positioning':[t for t in route['positioning'] if safe_excerpt(db,state,t)],
             'limits':route['limits'],'variants':[variant] if variant else route['variants'],
-            'match_reason':'延续目标盟约' if target else '匹配已选策略' if command_hit else '匹配已有成员与可购牌' if hits or offers else '按本组可用核心比较起步条件'})
+            'match_reason':'延续已锁定路线' if state.get('route_lock') else '延续目标盟约' if target else '匹配已选策略' if command_hit else '匹配已有成员与可购牌' if hits or offers else '根据已有过渡成员选择起步路线' if support else '第 3 回合起按可用盟约与低阶起步成本规划' if proactive else '按本组可用核心比较起步条件'})
     ranked.sort(key=lambda r:(-r['score'],r['id']));db._strategy_matches=(key,copy.deepcopy(ranked))
     return ranked[:limit]
 
@@ -135,7 +156,7 @@ def route_matches(db,state,limit=3):
 def member_roles(db,state,match):
     allowed,_,_=pool(db,state);route=next(r for r in library()['routes'] if r['id']==match['route_id'])
     extra=set().union(*(mentioned(db,t) for t in match['operation'])) if match['operation'] else set()
-    core=set(match['core_ids']);owned={u['op_id'] for u in state['units'] if not u.get('sprite_missing')}
+    core=set(match['core_ids']);owned={u['op_id'] for u in state['units']}
     ids=core|{db.by_name[n]['operator_id'] for n in extra}
     level=state['level'];rows=[]
     for oid in ids&allowed:
@@ -145,7 +166,7 @@ def member_roles(db,state,match):
         path='当前商店' if any(i['op_id']==oid for i in state['shop']) else '等级待确认' if level is None else '当前等级常规招募范围' if op['tier']<=level else '需晋升奖励等特殊获取；不保证出现' if op['tier']==level+1 else '后续升本或已确认的特殊获取途径'
         priority=(30 if is_core else 10)+(12 if oid not in owned else 0)+(8 if path=='当前商店' else 0)-op['tier']
         rows.append({'kind':'operator','op_id':oid,'name':op['name'],'role':role,'acquisition':path,'priority':priority,
-                     'reason':f'{match["title"]} / {role}；{path}'+('；本局可用性待确认' if match['conditional'] else '')})
+                     'reason':f'{match["title"]} / {role}；{path}'+('；已记录持有，待核对' if any(u['op_id']==oid and u.get('sprite_missing') for u in state['units']) else '')+('；本局可用性待确认' if match['conditional'] else '')})
     return sorted(rows,key=lambda i:(-i['priority'],i['name']))
 
 
@@ -159,18 +180,29 @@ def source_records(ids):
     allowed=set(ids);return [copy.deepcopy(s) for s in library()['sources'] if s['id'] in allowed]
 
 
-def local_plan(db,state,compact=False):
-    from .core import recommend,validate_actions
+def local_plan(db,state,compact=False,profile_id=None):
+    from .core import recommend,validate_actions,roster_review_note,shop_review_note
     from .tracking import normalize_items
-    matches=route_matches(db,state,3)
+    matches=route_matches(db,state,20 if profile_id else 3)
+    if profile_id:
+        selected=next((m for m in matches if m['id']==profile_id),None)
+        if selected:matches=[selected,*[m for m in matches if m['id']!=profile_id]][:3]
     if not matches:
         foundation=next((f for f in library()['foundations'] if f['name']==state['target'] and safe_excerpt(db,state,f['summary'])),None)
         message=('机制参考：'+foundation['summary']+'\n尚无满足策略与禁选条件的完整路线，先核对策略和当前商店。') if foundation else '先确认本局禁选、策略、现有成员和商店，再从已整理攻略中选择路线。'
         if state.get('opening') and state['field_meta'].get('opening_snapshot',{}).get('uncertain'):message='先重新确认本局禁选，再按攻略决定购买与路线。'
+        locked=route_identity(state.get('route_lock'))
+        if locked:message='已锁定路线：'+locked['title']+'。\n当前禁选、策略或路线启用条件不满足，暂停该路线的购买名单。请核对条件，或手动解锁后重新选择；不会自动换线。'
+        if roster_review_note(state):message+='\n'+roster_review_note(state)
+        if shop_review_note(state):message+='\n'+shop_review_note(state)
         return {'source':'本地攻略','analysis':message,'recommendation_list':[],'source_ids':['S03'] if foundation else [],'routes':[]}
     chosen=matches[0];ranked=recommend(db,state,True)
     feasible=[r for r in ranked if validate_actions(db,state,[{'type':'buy','slot':r['slot']}])[0]['valid']]
-    lines=['参考路线：'+chosen['title']+'。',chosen['match_reason']+'；先按当前可行步骤推进。']
+    lines=[('已锁定路线：' if state.get('route_lock') else '参考路线：')+chosen['title']+'。',chosen['match_reason']+'；先按当前可行步骤推进。']
+    if lineup_planning_ready(state) and not state.get('route_lock'):
+        lines.append('目标阵容已列在下方，可点选或一键追踪；认可方向后可锁定路线。高阶成员是后续目标，当前购买仍看商店与获取条件。')
+    if roster_review_note(state):lines.append(roster_review_note(state))
+    if shop_review_note(state):lines.append(shop_review_note(state))
     if chosen['conditional']:lines.append('本局禁选尚未确认，路线和候选只作待确认参考。')
     if feasible:
         best=feasible[0];lines+=['',f'当前优先：购买 {best["name"]}，花费 {best["cost"]}，余 {state["gold"]-best["cost"]} 资金。',
@@ -211,6 +243,10 @@ def ai_material(db,state):
         'routes':[{'route_id':rid,'path':f'references/routes/{rid}.md','content':skill_text(f'references/routes/{rid}.md')} for rid in route_ids],
         'matches':matches,'sources':source_records(ids),'constraints':library()['ai_constraints'],
         'disabled_routes':sorted(getattr(db,'disabled_guide_routes',[])),
+        'locked_route':route_identity(state.get('route_lock')),
+        'lineup_planning':{'ready':lineup_planning_ready(state),'starts_at_round':3,
+            'guidance':'第 3 回合起先给出可追踪的目标阵容与装备，区分过渡成员、核心和后期目标；不用等核心已持有或商店齐全。购买建议仍需实际商品、费用与获取条件。'},
+        'route_lock_satisfied':not state.get('route_lock') or bool(matches),
         'retrieval_note':'匹配排序是助手根据局面作出的推断，不是作者排名或胜率。只采用满足本局禁选与策略条件的分支；完整文件中的其他作者变体是比较资料，不代表当前可执行。'}
 
 

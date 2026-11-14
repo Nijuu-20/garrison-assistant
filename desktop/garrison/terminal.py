@@ -136,7 +136,7 @@ class CovenantStrip(QWidget):
             p.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,'盟约容器  /  录入阵容后显示激活状态与计数');return
         step=min(105,self.width()/len(self.entries));start=(self.width()-step*len(self.entries))/2
         for i,c in enumerate(self.entries):
-            x=start+i*step+step/2;active=c['active'];color=TEAL if active else '#5a7470';r=QRectF(x-21,2,42,42)
+            x=start+i*step+step/2;active=c['active'];color='#e1b970' if c.get('needs_review') else TEAL if active else '#5a7470';r=QRectF(x-21,2,42,42)
             p.setBrush(QColor('#123b32' if active else '#1b2729'));p.setPen(QPen(QColor('#35534d'),2));p.drawEllipse(r)
             p.setPen(QPen(QColor(color),3));span=min(1,c['effective']/max(1,c['activation_count']))
             p.drawArc(r,90*16,-round(360*16*span));p.setPen(QPen(QColor(color),1));p.drawEllipse(r.adjusted(6,6,-6,-6))
@@ -144,7 +144,7 @@ class CovenantStrip(QWidget):
             p.setFont(font(11,active));p.setPen(QColor(WHITE if active else MUTED))
             p.drawText(QRectF(x-step/2,47,step,16),Qt.AlignmentFlag.AlignCenter,c['name'])
             p.setFont(font(9));p.setPen(QColor(color))
-            p.drawText(QRectF(x-step/2,64,step,14),Qt.AlignmentFlag.AlignCenter,'已激活' if active else f'需要 {c["activation_count"]} 名')
+            p.drawText(QRectF(x-step/2,64,step,14),Qt.AlignmentFlag.AlignCenter,'待核对' if c.get('needs_review') else '已激活' if active else f'需要 {c["activation_count"]} 名')
 
 
 class OperatorDelegate(QStyledItemDelegate):

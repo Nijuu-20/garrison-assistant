@@ -41,13 +41,13 @@ try:
     check('no recognition logs in overlay','DEBUG_SENTINEL' not in '\n'.join(l.text() for l in (w.overlay.content,w.overlay.activity,w.overlay.links)))
     check('AI detail rendered in main',all(t in w.ai_output.toPlainText() for t in ('理由：','预期：','条件：','资金安排','站位与装备','后续目标','备选方案','目标盟约')))
     check('forbidden targets not recommended',all(title.text().split(' / ')[-1] not in {'乌萨斯','叙拉古','炎','阿戈尔','谢拉格'} for box,title,_ in w.overlay.suggestions if not box.isHidden()))
-    w.navigate(8,False);w.ai_status.setText('界面预览 · 模拟 AI 响应');app.processEvents();w.grab().save(str(OUT/'main-detailed-analysis.png'));w.overlay.grab().save(str(OUT/'overlay-analysis.png'))
+    w.navigate('analysis',False);w.ai_status.setText('界面预览 · 模拟 AI 响应');app.processEvents();w.grab().save(str(OUT/'main-detailed-analysis.png'));w.overlay.grab().save(str(OUT/'overlay-analysis.png'))
     w.settings['overlay_scale']=150;w.overlay.update_content();app.processEvents()
     check('large font scroll content stays within window',w.overlay.width()==410 and w.overlay.content.wordWrap())
     w.overlay.grab().save(str(OUT/'overlay-analysis-150.png'));w.settings['overlay_scale']=100
     s['gold']=1;w.refresh_all();check('old AI commands disappear after state change','AI 分析'!=w.overlay.activity.text() and '花费 2' not in w.overlay.content.text())
     w.ai_result=None;w.last_recognition=json.loads((HERE/'build/opening-recognition/solo-result.json').read_text('utf8'));w.overlay.update_content()
-    check('opening advice replaces ban dump','起步推荐' in w.overlay.content.text() and '推算禁用' not in w.overlay.content.text() and '禁核心' not in w.overlay.content.text())
+    check('confirmed opening advice follows locked group without ban dump','已锁定左组' in w.overlay.content.text() and '推算禁用' not in w.overlay.content.text() and '禁核心' not in w.overlay.content.text())
     app.processEvents();w.overlay.grab().save(str(OUT/'overlay-opening.png'))
 finally:
     (OUT/'report.json').write_text(json.dumps({'version':__version__,'passed':all(c['passed'] for c in checks),'checks':checks,'provider':'mock response; no live API used'},ensure_ascii=False,indent=2),'utf8')

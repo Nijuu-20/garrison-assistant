@@ -18,19 +18,19 @@ def check(name,value):checks.append({'test':name,'passed':bool(value)});assert v
 try:
     solo=json.loads((OUT/'solo-result.json').read_text('utf8'));coop=json.loads((OUT/'coop-result.json').read_text('utf8'))
     check('opening auto confirmation defaults on',w.settings['opening_auto_confirm'] and w.overlay.opening_auto_check.isChecked())
-    w.navigate(7,False);w.live=True;w.settings['auto_apply']=False;w.gate.reset()
+    w.navigate('bans',False);w.live=True;w.settings['auto_apply']=False;w.gate.reset()
     w.receive_recognition(solo,fingerprint(w.store.state));check('waits for stable opening',w.store.state['opening'] is None)
     check('overlay offers manual confirmation before stable',w.overlay.opening_confirm.isEnabled() and '禁选核心' in w.overlay.opening_bans.text())
-    check('switches to opening tab',w.recognition_tabs.currentIndex()==2)
+    check('switches to home opening tab',w.home_tabs.currentIndex()==w.home_tab_ids['bans'])
     check('preview 26 icon rows',w.opening_table.rowCount()==26)
     pictures=[w.opening_table.item(i,0).icon().pixmap(32,32).toImage() for i in range(26)]
     check('PRTS icons retain transparent backgrounds',all(p.hasAlphaChannel() and p.pixelColor(0,0).alpha()==0 for p in pictures))
     check('PRTS icons have visible silhouettes',all(any(p.pixelColor(x,y).alpha()>200 for y in range(p.height()) for x in range(p.width())) for p in pictures))
     w.receive_recognition(solo,fingerprint(w.store.state));check('stable opening applies without tactical auto apply',w.store.state['opening']['selected']=='left' and w.store.state['field_meta']['opening_snapshot']['source']=='自动识别')
-    check('overlay confirmed state','已自动确认' in w.overlay.opening_status.text() and not w.overlay.opening_confirm.isEnabled())
+    check('overlay confirmed state','已锁定' in w.overlay.opening_status.text() and not w.overlay.opening_confirm.isEnabled())
     revision=w.store.state['revision'];w.receive_recognition(solo,fingerprint(w.store.state))
     check('same frame does not repeat confirmation',w.store.state['revision']==revision)
-    w.live=False;check('solo advice in main and overlay','起步推荐' in w.local_advice.toPlainText() and '起步推荐' in w.overlay.content.text())
+    w.live=False;check('confirmed solo advice follows actual locked group','当前锁定' in w.local_advice.toPlainText() and '已锁定左组' in w.overlay.content.text())
     app.processEvents();w.grab().save(str(OUT/'assistant-solo.png'));w.overlay.show();app.processEvents();w.overlay.grab().save(str(OUT/'overlay-solo.png'));w.overlay.hide()
     changed=copy.deepcopy(solo);opening=changed['opening'];opening['selected']='right'
     for e in opening['core']:e['state']='lit' if e['name'] in opening['groups']['right'] else 'grey'
@@ -38,7 +38,7 @@ try:
     before=set(w.store.state['opening']['banned_ids']);w.last_recognition=changed;w.apply_opening()
     check('manual side confirmation replaces bans',set(w.store.state['opening']['banned_ids'])!=before and w.store.state['opening']['selected']=='right')
     w.live=True;w.gate.reset();w.receive_recognition(solo,fingerprint(w.store.state))
-    check('changed group suspends old restrictions',w.store.state['field_meta']['opening_snapshot']['uncertain'] and w.store.state['opening']['selected']=='right')
+    check('changed group preserves lock until stable',not w.store.state['field_meta']['opening_snapshot'].get('uncertain') and w.store.state['opening']['selected']=='right' and '新选组核对中' in w.overlay.opening_status.text())
     w.receive_recognition(solo,fingerprint(w.store.state))
     check('new stable group replaces old restrictions',w.store.state['opening']['selected']=='left' and not w.store.state['field_meta']['opening_snapshot'].get('uncertain'))
     w.new_session();w.live=True;w.settings['auto_apply']=True;w.overlay.opening_auto_check.click()

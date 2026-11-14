@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QFrame, QLabe
     QAbstractItemView, QFileDialog, QMessageBox, QInputDialog, QDialog, QDialogButtonBox, QKeySequenceEdit,
     QSystemTrayIcon, QMenu, QGraphicsOpacityEffect)
 from .core import (Database, StateStore, new_state, unit, covenant_status, recommend, evaluated_effect,
-    promotion_need, craft_options, equip_item, validate_actions, validate_state, fingerprint, replacement_options)
+    promotion_need, craft_options, equip_item, validate_actions, validate_state, fingerprint, replacement_options,shop_review_note,pending_shop_field)
 from .storage import Storage, read_json, atomic_json
 from .windows import Hotkeys, enum_windows, capture_window, stop_capture, set_capture_excluded,client_geometry,place_highlight,peek_capture
 from .recognition import Recognizer, StabilityGate, apply_fields, applicable_fields, field_label, mark_uncertain, ready_for_auto, LABELS
@@ -35,9 +35,10 @@ from .opening_icons import asset_root as opening_assets
 from .advice import overlay_advice,analysis_text,target_candidates
 from .tracking import normalize_items,item_key,current_candidates,ShopWatch,same_shop_pixels
 from .tracking_view import TrackingChoices,TrackingDialog,ShopHighlight
-from .strategy import local_plan,sources_html,bundled_guides
+from .strategy import local_plan,sources_html,bundled_guides,route_matches,route_identity
 from .catalog import CatalogDetails
 from .briefing import SoloBriefing
+from .workspace import WorkspaceMixin
 
 
 def make_icon():
@@ -100,6 +101,36 @@ class MoveBar(QFrame):
         if isinstance(self.window, MainWindow): self.window.toggle_maximize()
 
 
+class RouteLockControl(QWidget):
+    def __init__(self,main):
+        super().__init__();self.main=main;self.choice=None
+        self.title=label('','accent',True);self.toggle=button('锁定路线',self.clicked)
+        self.toggle.setFixedHeight(30)
+        self.track=button('追踪推荐阵容',main.track_recommended_formation);self.track.setFixedHeight(30)
+        self.track.setToolTip('将推荐干员加入追踪；已有关注保留，装备可在名单中单独选择。')
+        layout=QVBoxLayout(self);layout.setContentsMargins(0,3,0,3);layout.setSpacing(4)
+        layout.addWidget(self.title);layout.addWidget(row(self.toggle,self.track))
+    def refresh(self):
+        m=self.main;s=m.store.state;locked=route_identity(s.get('route_lock'));matches=route_matches(m.db,s,3)
+        result=m.ai_result or {};ai_id=result.get('guide_profile_id') if m.settings['ai_enabled'] and result.get('fingerprint')==fingerprint(s) and not result.get('route_conflict') else None
+        self.choice=locked or next((r for r in matches if r['id']==ai_id),matches[0] if matches else None)
+        self.title.setText(('已锁定路线 / ' if locked else '当前路线 / ')+self.choice['title'] if self.choice else '攻略路线 / 等待推荐')
+        self.toggle.setText('解锁路线' if locked else '锁定这条路线');self.toggle.setEnabled(bool(self.choice))
+        self.toggle.setToolTip('锁定后只更新回合步骤，不自动换线；禁选与策略条件仍需满足。')
+        view=overlay_advice(m.db,s,m.ai_result,m.visible_opening(),m.settings['ai_enabled'])
+        candidates=[i for i in view.get('recommendation_list',[]) if i.get('kind')=='operator']
+        tracked={item_key(i) for i in m.tracked};missing=any(item_key(i) not in tracked for i in candidates)
+        self.track.setEnabled(missing);self.track.setText('阵容已追踪' if candidates and not missing else '追踪推荐阵容')
+    def clicked(self):
+        if self.choice:self.main.toggle_route_lock(self.choice['id'])
+
+
+def opening_lock_style(widget,locked):
+    if widget.property('openingLocked')==locked:return
+    widget.setProperty('openingLocked',locked)
+    widget.setStyleSheet('QLabel { color:#ffe09b; background:#29342e; border:1px solid #677056; padding:4px 7px; }' if locked else '')
+
+
 class Overlay(QWidget):
     def __init__(self, main):
         super().__init__(None, Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
@@ -116,7 +147,8 @@ class Overlay(QWidget):
         self.activity=label('','accent',True);self.content=label('',wrap=True)
         self.content.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.sources=label('','muted',True);self.sources.setTextFormat(Qt.TextFormat.RichText);self.sources.setOpenExternalLinks(True)
-        self.analysis_box=card('优先分析',self.activity,self.content,self.sources)
+        self.route_lock=RouteLockControl(main)
+        self.analysis_box=card('优先分析',self.activity,self.route_lock,self.content,self.sources)
         self.opening_status=label('','accent',True);self.opening_bans=label('',wrap=True)
         self.opening_auto_check=QCheckBox('稳定识别后自动确认')
         self.opening_auto_check.setChecked(main.settings['opening_auto_confirm'])
@@ -129,7 +161,7 @@ class Overlay(QWidget):
             title=label('','section',True);reason=label('',wrap=True)
             box=card('',title,reason);self.suggestions.append((box,title,reason));suggestion_boxes.append(box)
         self.links=label('', 'muted',True)
-        self.tracking_choices=TrackingChoices(main.toggle_tracking)
+        self.tracking_choices=TrackingChoices(main.toggle_tracking,bulk=main.track_recommended_formation)
         inner=column(self.analysis_box,self.opening_box,self.tracking_choices,self.goal,*suggestion_boxes,self.links,None,margin=10)
         self.advice_layout=inner.layout()
         l.addWidget(scroll(inner),1)
@@ -140,6 +172,7 @@ class Overlay(QWidget):
         self.resize(410,720)
     def update_content(self):
         m=self.main;s=m.store.state
+        self.route_lock.refresh()
         m.fill_tracking(self.tracking_pins,self.tracking_choices)
         view=overlay_advice(m.db,s,m.ai_result,m.visible_opening(),m.settings['ai_enabled'])
         self.hud.set_state(s);self.goal.setText('目标盟约推荐')
@@ -151,6 +184,7 @@ class Overlay(QWidget):
         self.opening_review_cancel.setVisible(m.review_opening)
         self.opening_box.setVisible(confirmation['visible'])
         self.opening_status.setText(confirmation['status']);self.opening_bans.setText(confirmation['bans'])
+        opening_lock_style(self.opening_status,confirmation.get('locked',False))
         self.opening_confirm.setText(confirmation['button']);self.opening_confirm.setEnabled(confirmation['enabled'])
         for i,(box,title,reason) in enumerate(self.suggestions):
             box.setVisible(i<len(ranked))
@@ -160,8 +194,10 @@ class Overlay(QWidget):
                 reason.setText(r['reason']+'\n'+r['progress']+('\n补位留意：'+names if names else '')+('\n本局禁选尚未确认，先核对可用性。' if r['conditional'] else ''))
         self.links.setText('先确认阵容与本局可用盟约，再决定主力方向。' if not ranked else '')
         self.links.setVisible(not ranked)
-        self.setWindowOpacity(m.settings['overlay_opacity'])
-        self.setStyleSheet(STYLE + f'QLabel {{ font-size: {round(13*m.settings["overlay_scale"]/100)}px; }}')
+        appearance=(m.settings['overlay_opacity'],m.settings['overlay_scale'])
+        if getattr(self,'appearance',None)!=appearance:
+            self.appearance=appearance;self.setWindowOpacity(appearance[0])
+            self.setStyleSheet(STYLE + f'QLabel {{ font-size: {round(13*appearance[1]/100)}px; }}')
     def closeEvent(self,e): e.ignore(); self.main.close_overlay()
 
 
@@ -187,7 +223,7 @@ class FloatingButton(QWidget):
     def mouseDoubleClickEvent(self,e): self.main.restore_main()
 
 
-class MainWindow(QMainWindow):
+class MainWindow(WorkspaceMixin,QMainWindow):
     def __init__(self, storage=None):
         super().__init__(); self.storage=storage or Storage(); self.settings=self.storage.settings
         override=self.settings.get('database_override'); self.db=Database(override if override and Path(override).exists() else None)
@@ -197,6 +233,7 @@ class MainWindow(QMainWindow):
         except ValueError: saved=None
         self.store=StateStore(saved); self.pool=QThreadPool(self); self.pool.setMaxThreadCount(3); self.jobs=set()
         self.recognizer=Recognizer(self.db); self.gate=StabilityGate(self.settings['stable_frames']); self.coach=Coach()
+        self.battle_gate=StabilityGate(self.settings['stable_frames']);self.battle_busy=False
         self.solo_briefing=SoloBriefing();self.review_opening=False
         self.live=False; self.capture_busy=False; self.ai_busy=False; self.closing=False; self.frame=None; self.last_recognition=None
         self.capture_generation=0; self.ai_generation=0; self.ai_result=None; self.recognition_status='尚未识别 · 等待连接游戏'
@@ -219,14 +256,16 @@ class MainWindow(QMainWindow):
         side=QFrame(); side.setObjectName('sidebar'); side.setFixedWidth(188); sl=QVBoxLayout(side); sl.setContentsMargins(9,14,9,10); sl.setSpacing(4)
         logo=label('卫 戍 协 议','title');sl.addWidget(logo);sl.addWidget(label('STRONGHOLD PROTOCOL','muted'))
         sl.addWidget(label('辅助终端  /  '+__version__,'accent'));sl.addSpacing(10)
-        self.stack=QStackedWidget(); self.nav=[]
-        pages=[('01   作战终端',self.page_home),('02   编队工坊',self.page_board),('03   资料图鉴',self.page_catalog),
-               ('04   盟约与层数',self.page_covenants),('05   装备仓库',self.page_equipment),('06   策略与资金',self.page_economy),
-               ('07   阵容攻略',self.page_guides),('08   画面识别',self.page_recognition),('09   AI 回合教练',self.page_coach),('10   数据与设置',self.page_settings)]
-        for i,(title,build) in enumerate(pages):
-            if i in (3,7):sl.addSpacing(7)
+        self.stack=QStackedWidget();self.nav=[];self.page_ids={};self.workspace_ready=False
+        parts={name:build() for name,build in [('home',self.build_home),('roster',self.page_board),('catalog',self.page_catalog),
+            ('covenants',self.page_covenants),('equipment',self.page_equipment),('tools',self.page_economy),
+            ('guides',self.page_guides),('recognition',self.page_recognition),('api',self.page_coach),('settings',self.page_settings)]}
+        for i,(name,title,content) in enumerate(self.compose_workspace(parts)):
+            if i==3:sl.addSpacing(12)
+            self.page_ids[name]=i
             b=button(title,lambda idx=i:self.navigate(idx)); b.setCheckable(True); b.setProperty('nav',True);b.setFixedHeight(38);sl.addWidget(b); self.nav.append(b)
-            content=build();wrap=QWidget();wl=QVBoxLayout(wrap);wl.setContentsMargins(22,18,22,16);wl.addWidget(content);self.stack.addWidget(wrap)
+            wrap=QWidget();wl=QVBoxLayout(wrap);wl.setContentsMargins(18,14,18,12);wl.addWidget(content);self.stack.addWidget(wrap)
+        self.workspace_ready=True
         sl.addStretch();sl.addWidget(label('本地资料 / 即时推荐\n官方 PC 端优先适配','muted'));body.addWidget(side);body.addWidget(self.stack,1)
         self.status=label('准备就绪','statusbar');self.status.setMargin(7);root_layout.addWidget(self.status)
         self.overlay=Overlay(self); self.floating=FloatingButton(self);self.shop_highlight=ShopHighlight()
@@ -242,7 +281,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence('Ctrl+Z'),self,activated=self.undo); QShortcut(QKeySequence('Ctrl+Y'),self,activated=self.redo)
 
     def heading(self,title,subtitle):
-        codes={'作战终端':'01','编队工坊':'02','资料图鉴':'03','盟约与层数':'04','装备仓库':'05','回合决策':'06','阵容攻略库':'07','画面识别':'08','AI 回合教练':'09','数据与设置':'10'}
+        codes={'首页':'01','资料图鉴':'02','阵容攻略库':'03','对局工具':'04','设置':'05'}
         code=label(codes.get(title,'//'),'headingCode');code.setFixedSize(44,56);code.setAlignment(Qt.AlignmentFlag.AlignCenter)
         text=column(label(title,'title'),label(subtitle,'muted',True));text.layout().setSpacing(3)
         heading=row(code,text);heading.layout().setStretch(1,1);heading.setFixedHeight(60);return heading
@@ -274,9 +313,12 @@ class MainWindow(QMainWindow):
         candidates=view.get('recommendation_list',[])
         choices.set_items(candidates,self.tracked)
     def refresh_tracking(self):
+        if hasattr(self,'home_pins'):self.fill_tracking(self.home_pins,self.home_choices)
         if hasattr(self,'ai_pins'):self.fill_tracking(self.ai_pins,self.ai_choices)
         if hasattr(self,'overlay'):self.fill_tracking(self.overlay.tracking_pins,self.overlay.tracking_choices)
         if self.tracking_dialog is not None:self.tracking_dialog.refresh()
+        for control in (getattr(self,'home_route_lock',None),getattr(self,'ai_route_lock',None),getattr(getattr(self,'overlay',None),'route_lock',None)):
+            if control is not None:control.refresh()
         self.refresh_shop_matches()
     def toggle_tracking(self,item):
         items=normalize_items(self.db,[item])
@@ -284,13 +326,26 @@ class MainWindow(QMainWindow):
         item=items[0];key=item_key(item);exists=any(item_key(i)==key for i in self.tracked)
         self.tracked=[i for i in self.tracked if item_key(i)!=key] if exists else [*self.tracked,item]
         self.storage.save_tracking(self.tracked);self.refresh_tracking()
+    def track_recommended_formation(self):
+        view=overlay_advice(self.db,self.store.state,self.ai_result,self.visible_opening(),self.settings['ai_enabled'])
+        candidates=normalize_items(self.db,[i for i in view.get('recommendation_list',[]) if i.get('kind')=='operator'],self.store.state)
+        keys={item_key(i) for i in self.tracked};added=[i for i in candidates if item_key(i) not in keys]
+        if not added:return
+        self.tracked+=added;self.storage.save_tracking(self.tracked);self.refresh_tracking()
+        self.notify(f'已加入 {len(added)} 名推荐干员；商店出现时显示追踪标记')
+    def toggle_route_lock(self,profile_id):
+        locked=self.store.state.get('route_lock')
+        if not locked and profile_id not in {m['id'] for m in route_matches(self.db,self.store.state,20)}:return
+        self.cancel_ai();self.ai_result=None;self.auto_keys.clear()
+        self.change(lambda s:s.update(route_lock='' if locked else profile_id),'解除攻略路线锁定' if locked else '锁定攻略路线')
+        self.notify('已恢复自动选择攻略路线' if locked else '攻略路线已锁定；后续建议沿用该路线，当前回合步骤仍会更新')
     def open_tracking(self):
         if self.tracking_dialog is not None:self.tracking_dialog.raise_();return
         dialog=TrackingDialog(self);self.tracking_dialog=dialog
         dialog.finished.connect(lambda _:(setattr(self,'tracking_dialog',None),dialog.deleteLater()))
         dialog.show()
     def clear_shop_tracking(self):
-        self.shop_watch.reset();self.watch_source=None;self.tracking_frame=None
+        self.shop_watch.reset();self.watch_source=None;self.tracking_frame=None;self.pixel_missing_since=None
         if hasattr(self,'canvas'):self.canvas.tracking_regions=[];self.canvas.update()
         if hasattr(self,'shop_highlight'):self.shop_highlight.hide();self.shop_highlight.matches=[]
     def refresh_shop_matches(self):
@@ -304,8 +359,6 @@ class MainWindow(QMainWindow):
         surface=self.shop_highlight;source=self.watch_source;matches=self.canvas.tracking_regions
         if not (self.live and source and matches and (self.overlay.isVisible() or self.floating.isVisible())):
             surface.hide();return
-        if time.monotonic()-source['captured']>10:
-            self.clear_shop_tracking();return
         selected=self.window_combo.currentData() or {}
         if any(selected.get(k)!=source.get(k) for k in ('hwnd','pid')):self.clear_shop_tracking();return
         try:
@@ -313,12 +366,23 @@ class MainWindow(QMainWindow):
             if geometry is None:surface.hide();return
             if tuple(geometry[2:])!=tuple(source['size']):self.clear_shop_tracking();return
             latest=peek_capture(source['hwnd'],source['pid'])
-            if latest is None:surface.hide();return
-            if not same_shop_pixels(latest,self.tracking_frame,matches):self.clear_shop_tracking();return
-            surface.matches=matches;surface.show();set_capture_excluded(int(surface.winId()))
+            if latest is None:
+                now=time.monotonic()
+                if getattr(self,'pixel_missing_since',None) is None:self.pixel_missing_since=now
+                if now-self.pixel_missing_since>1:surface.hide()
+                if now-self.pixel_missing_since>3:self.clear_shop_tracking()
+                return
+            self.pixel_missing_since=None
+            matches=self.shop_watch.visible_matches(latest,self.tracking_frame,matches)
+            self.canvas.tracking_regions=matches
+            if not matches:surface.hide();return
+            surface.matches=matches
+            if not surface.isVisible():
+                set_capture_excluded(int(surface.winId()));surface.show()
             place_highlight(int(surface.winId()),geometry);surface.update()
         except (RuntimeError,OSError):self.clear_shop_tracking()
     def navigate(self,index,animate=True):
+        index=self.resolve_destination(index)
         self.finish_transition()
         changed=self.stack.currentIndex()!=index
         self.stack.setCurrentIndex(index)
@@ -381,34 +445,18 @@ class MainWindow(QMainWindow):
             self.pixmaps[key]=p
         return self.pixmaps[key]
 
-    def page_home(self):
-        self.home_hud=HudRail();self.home_links=CovenantStrip()
-        self.home_goal=label('', 'accent', True);self.home_status=label('', 'muted',True)
-        self.local_advice=QPlainTextEdit();self.local_advice.setReadOnly(True);self.local_advice.setMinimumHeight(120)
-        self.home_roster=QListWidget();self.home_roster.setIconSize(QSize(44,44));self.home_roster.setMinimumHeight(120)
-        self.home_sources=label('','muted',True);self.home_sources.setTextFormat(Qt.TextFormat.RichText);self.home_sources.setOpenExternalLinks(True)
-        left=card('决策记录 / 攻略建议',self.home_goal,self.local_advice,self.home_sources)
-        right=card('当前编队',self.home_roster,row(button('编辑阵容',lambda:self.navigate(1)),button('新对局',self.new_session)))
-        split=QSplitter();split.addWidget(left);split.addWidget(right);split.setSizes([620,360])
-        self.home_slots=[RecommendationSlot() for _ in range(5)]
-        self.home_level=label('—','number')
-        level=card('',label('调度中心','muted'),self.home_level,label('LEVEL','accent'));level.setFixedWidth(84)
-        connect=button('连接游戏',lambda:self.navigate(7),True)
-        actions=column(label('辅助调度','accent'),connect,button('AI 分析',self.analyze),button('载入示例',self.load_example));actions.setFixedWidth(116)
-        dock=row(level,*self.home_slots,actions)
-        dock.setFixedHeight(166)
-        content=column(self.heading('作战终端','局面状态 → 盟约进度 → 补强候选'),self.home_hud,self.home_links,split,self.home_status,dock)
-        content.layout().setStretch(3,1);content.setMinimumHeight(748)
-        return DashboardScroll(content)
+    def page_home(self):return self.build_home()
 
     def refresh_home(self):
         s=self.store.state;links=covenant_status(self.db,s)
+        self.refresh_home_setup()
+        self.home_route_lock.refresh()
         self.home_hud.set_state(s);self.home_level.setText('—' if s['level'] is None else str(s['level']))
         visible=sorted([c for c in links if c['count'] or c['name']==s['target']],key=lambda c:(not c['active'],-c['count']))
         self.home_links.set_entries(visible[:9])
         self.home_goal.setText('目标盟约 / ' + (s['target'] or '尚未选择'))
-        visible_units=known_units(s);missing=len(s['units'])-len(visible_units)
-        self.home_status.setText(f'{s["phase"]}阶段   ·   战场 {sum(u["zone"]=="field" for u in visible_units)} 人   ·   整备 {sum(u["zone"]=="bench" for u in visible_units)} 人'+(f' · {missing} 人暂不可见' if missing else '')+f'\n{self.recognition_status}')
+        roster_units=known_units(s);missing=sum(bool(u.get('sprite_missing')) for u in roster_units)
+        self.home_status.setText(f'{s["phase"]}阶段 · 战场 {sum(u["zone"]=="field" for u in roster_units)} 人 · 整备 {sum(u["zone"]=="bench" for u in roster_units)} 人'+(f' · {missing} 人待核对（沿用上次阵容）' if missing else ''))
         ranked=recommend(self.db,s,bool(s['shop']))[:5]; lines=[]
         for i,slot in enumerate(self.home_slots):
             r=ranked[i] if (s['units'] or s['shop']) and i<len(ranked) else None
@@ -433,13 +481,15 @@ class MainWindow(QMainWindow):
         if not opening:
             lines=[analysis_text(self.db,s,self.ai_result) if view['source']=='AI 分析' else local_plan(self.db,s)['analysis']]
         self.home_sources.setText(sources_html(view.get('source_ids',[]),view.get('source_label','攻略来源')))
-        self.local_advice.setPlainText('\n'.join(lines)); self.home_roster.clear()
+        content='\n'.join(lines)
+        if self.local_advice.toPlainText()!=content:self.local_advice.setPlainText(content)
+        self.home_roster.clear()
         for u in s['units']:
-            o=self.db.ops[u['op_id']]; item=QListWidgetItem(QIcon(self.pixmap(u['op_id'])),f'{o["name"]}   {"精锐" if u["elite"] else "初始"}\n{"战场" if u["zone"]=="field" else "整备"}  /  {" · ".join(o["covenants"])}'); self.home_roster.addItem(item)
+            o=self.db.ops[u['op_id']]; item=QListWidgetItem(QIcon(self.pixmap(u['op_id'])),f'{o["name"]}   {"精锐待确认" if u.get("sprite_elite_unknown") else "精锐" if u["elite"] else "初始"}\n{"战场" if u["zone"]=="field" else "整备"}  /  {" · ".join(o["covenants"])}');item.setData(Qt.ItemDataRole.UserRole,u['uid']);self.home_roster.addItem(item)
 
         for i,u in enumerate(s['units']):
             item=self.home_roster.item(i)
-            if u.get('sprite_missing'):item.setText(item.text()+' · 暂不可见')
+            if u.get('sprite_missing'):item.setText(item.text()+' · 待核对（沿用上次记录）')
             if u.get('sprite_elite_unknown'):item.setText(item.text().replace('初始','精锐待确认'))
 
     def page_board(self):
@@ -462,7 +512,7 @@ class MainWindow(QMainWindow):
         split=QSplitter(); split.addWidget(left); split.addWidget(middle); split.addWidget(detail); split.setSizes([250,500,270])
         self.saved_teams=combo([(x['name'],i) for i,x in enumerate(self.storage.teams)])
         self.fill_board_pool()
-        return column(self.heading('编队工坊','拖拽干员到战场或整备区；双击资料池可直接加入战场。同名干员分别记录。'),
+        return column(label('核对战场与整备区：拖入或双击添加成员，选择成员修正精锐、位置与装备。','muted',True),
             row(self.team_name,self.target_combo,button('保存阵容',self.save_team,True),button('撤销',self.undo),button('恢复',self.redo)),
             split,row(self.saved_teams,button('载入',self.load_team),button('导入阵容',self.import_team),button('导出阵容',self.export_team),button('分享图',self.export_image)),button('已核对当前完整阵容',self.confirm_battle_roster))
 
@@ -482,8 +532,8 @@ class MainWindow(QMainWindow):
         for u in s['units']:
             o=self.db.ops[u['op_id']]; item=QListWidgetItem(QIcon(self.pixmap(u['op_id'])),f'{o["name"]}   {"◆ 精锐" if u["elite"] else "◇ 初始"}\n{" · ".join(o["covenants"])}   /   装备 {len(u["equipment"])}/{u["capacity"]}')
             item.setData(Qt.ItemDataRole.UserRole,u['uid']); (self.field_list if u['zone']=='field' else self.bench_list).addItem(item)
-            if u.get('sprite_missing'):item.setText(item.text()+'\n暂不可见 · 不计入建议')
-            elif u.get('sprite_elite_unknown'):item.setText(item.text().replace('◇ 初始','◇ 精锐状态待确认'))
+            if u.get('sprite_missing'):item.setText(item.text()+'\n待核对 · 保留阵容与盟约贡献')
+            if u.get('sprite_elite_unknown'):item.setText(item.text().replace('◇ 初始','◇ 精锐状态待确认'))
         self.target_combo.blockSignals(True); self.target_combo.setCurrentIndex(max(0,self.target_combo.findData(s['target']))); self.target_combo.blockSignals(False)
         self.select_unit(self.board_uid)
     def selected_unit(self): return next((u for u in self.store.state['units'] if u['uid']==self.board_uid),None)
@@ -546,7 +596,7 @@ class MainWindow(QMainWindow):
         u=self.selected_unit()
         if not u:return
         inv=self.store.state['inventory']
-        if not inv:self.error('先在装备仓库录入持有装备');return
+        if not inv:self.error('先在对局工具的“库存与合成”中录入持有装备');return
         name,ok=QInputDialog.getItem(self,'装备分配','选择库存装备',inv,0,False)
         if ok:
             self.change(lambda s:equip_item(self.db,s,u['uid'],name),'分配装备 / 同名自动进阶')
@@ -578,12 +628,13 @@ class MainWindow(QMainWindow):
         self.catalog_add=self.catalog_detail.add;self.catalog_compare=self.catalog_detail.compare
         split=QSplitter();split.addWidget(self.catalog_list);split.addWidget(self.catalog_detail);split.setSizes([500,500]);split.setChildrenCollapsible(False)
         self.compare_table=table(['项目']);self.compare_table.setMinimumHeight(180)
-        tabs=QTabWidget();tabs.addTab(split,'干员与技能');tabs.addTab(column(self.compare_table,button('清空对比',self.clear_compare)),'并排对比')
+        self.catalog_tabs=QTabWidget()
+        operators=column(row(self.catalog_search,self.catalog_count,self.catalog_reset),filters,split);operators.layout().setStretch(2,1);operators.layout().setSpacing(7)
+        self.catalog_tabs.addTab(operators,'干员');self.catalog_tabs.addTab(column(self.compare_table,button('清空对比',self.clear_compare)),'并排对比')
         for group in self.catalog_filters:group.changed.connect(self.fill_catalog)
         self.catalog_search.textChanged.connect(self.fill_catalog);self.fill_catalog()
-        content=column(self.heading('资料图鉴','同组多选 · 各组组合筛选 · 再次点按取消'),
-                       row(self.catalog_search,self.catalog_count,self.catalog_reset),filters,tabs)
-        content.layout().setStretch(3,1)
+        content=column(self.heading('资料图鉴','干员、盟约、装备、策略与指令，在这里统一查阅。'),self.catalog_tabs)
+        content.layout().setStretch(1,1)
         content.layout().setSpacing(7);return content
     def reset_catalog_filters(self):
         self.catalog_search.blockSignals(True);self.catalog_search.clear();self.catalog_search.blockSignals(False)
@@ -631,14 +682,14 @@ class MainWindow(QMainWindow):
         self.covenant_table.itemSelectionChanged.connect(self.show_covenant)
         self.covenant_text=QPlainTextEdit();self.covenant_text.setReadOnly(True)
         self.stack_value=spin(0,0,999999);self.fixed_layers=spin(0,0,999999);self.temp_layers=spin(0,0,999999)
-        return column(self.heading('盟约与层数','按不同干员计数，特殊规则独立处理。公式结果保留原文触发条件。'),
+        return column(label('盟约规则与本局进度 · 按实际成员计数，层数可以核对后记录。','muted',True),
             self.covenant_table,row(label('所选盟约层数'),self.stack_value,button('记录层数',self.save_layers),None),
             row(label('乌萨斯固定'),self.fixed_layers,label('临时'),self.temp_layers,button('分别记录',self.save_ursas),None),self.covenant_text)
     def refresh_covenants(self):
         self.covenant_rows=covenant_status(self.db,self.store.state)
         self.covenant_table.blockSignals(True)
         selected=self.covenant_table.currentRow();fill_table(self.covenant_table,[[c['name'],f'{c["count"]}'+(f' +{c["bonus"]}调和' if c['bonus'] else '')+f' / {c["activation_count"]}',
-            '已激活' if c['active'] else ('互斥失效' if c['name']=='独行' and c['count']>=2 else '未激活'),self.store.state['stacks'].get(c['name'],0),c['next'] or '—'] for c in self.covenant_rows])
+            '待核对（沿用记录）' if c['needs_review'] else '已激活' if c['active'] else ('互斥失效' if c['name']=='独行' and c['count']>=2 else '未激活'),self.store.state['stacks'].get(c['name'],0),c['next'] or '—'] for c in self.covenant_rows])
         self.covenant_table.selectRow(max(0,selected));self.fixed_layers.setValue(self.store.state['ursas_fixed']);self.temp_layers.setValue(self.store.state['ursas_temporary'])
         self.covenant_table.blockSignals(False);self.show_covenant()
     def show_covenant(self):
@@ -652,6 +703,7 @@ class MainWindow(QMainWindow):
         lines=[c['name']+'  /  '+('整备区也计数' if c['bench_counts'] else '仅战场计数'),c['membership_rule'],
                '\n原始规则\n'+c['effect'],f'\n代入 {layers} 层（仅替换明确公式，原文所有条件仍需满足）\n'+evaluated_effect(c['effect'],layers),
                '\n补位候选\n'+candidates,'\n相关干员与触发：']
+        if c['needs_review']:lines.insert(1,'待核对：当前人数与激活进度沿用最后确认的阵容。')
         for o in related:lines.append(f'{o["name"]} / {" · ".join(o["categories"])}\n初始：{o["effect_initial"]}\n精锐：{o["effect_elite"]}')
         self.covenant_text.setPlainText('\n'.join(lines))
     def save_layers(self):
@@ -667,10 +719,11 @@ class MainWindow(QMainWindow):
         self.equipment_list=QListWidget();self.equipment_list.currentTextChanged.connect(self.show_equipment)
         self.equipment_description=QPlainTextEdit();self.equipment_description.setReadOnly(True)
         self.inventory_list=QListWidget();self.recipe_table=table(['合成结果','材料 A','材料 B','条件'])
-        left=card('装备资料',self.equipment_search,self.equipment_list,self.equipment_description,button('加入持有库存',self.add_inventory))
+        equipment_split=QSplitter();equipment_split.addWidget(column(self.equipment_search,self.equipment_list))
+        equipment_split.addWidget(card('装备效果与获取',self.equipment_description,button('加入持有库存',self.add_inventory),button('管理本局库存',lambda:self.navigate('inventory'))));equipment_split.setSizes([280,700])
         right=column(card('本局库存',self.inventory_list,button('移除所选库存',self.remove_inventory)),card('可合成与缺少材料',self.recipe_table,button('记录合成结果',self.craft,True)))
-        split=QSplitter();split.addWidget(left);split.addWidget(right);self.fill_equipment()
-        return column(self.heading('装备仓库','同名基础装备合成进阶装备；组合配方依据现有数据库。分配装备请在编队工坊选择实例。'),split)
+        self.inventory_page=column(label('本局库存与合成 · 查阅或添加装备请前往图鉴；分配装备请在首页核对阵容。','muted',True),right,button('打开装备图鉴',lambda:self.navigate('equipment')))
+        self.fill_equipment();return equipment_split
     def fill_equipment(self):
         self.equipment_list.clear();q=self.equipment_search.text().strip()
         self.equipment_list.addItems([n for n,e in self.db.equipment.items() if q in n+e['effect']])
@@ -717,8 +770,9 @@ class MainWindow(QMainWindow):
         cmd=QSplitter();cmd.addWidget(column(self.command_search,self.command_list));cmd.addWidget(column(self.command_detail,
             row(button('加入本局策略',self.add_strategy),button('记录一次使用',self.use_command)),row(self.cooldown,button('更新冷却',self.set_cooldown)),
             label('本局已选策略 / 指令','section'),self.selected_strategies,button('从本局移除',self.remove_strategy)))
-        tabs=QTabWidget();tabs.addTab(econ,'商店 · 晋升 · 资金');tabs.addTab(cmd,'策略与指令');self.fill_commands()
-        return column(self.heading('回合决策','所有费用按顺序核验。这里记录与规划助手状态，游戏中的购买与部署由你完成。'),tabs)
+        self.command_catalog_page=cmd
+        self.tools_tabs=QTabWidget();self.tools_tabs.addTab(econ,'商店与资金');self.fill_commands()
+        return column(self.heading('对局工具','记录商店、核算资金与管理库存；阵容在首页核对，资料在图鉴查阅。'),self.tools_tabs)
     def save_economy(self):
         def change(s):
             for key,w in self.economy_fields.items():
@@ -744,6 +798,7 @@ class MainWindow(QMainWindow):
         fill_table(self.shop_table,[[x.get('slot',i)+1,self.db.ops[x['op_id']]['name'],x['cost'] if x.get('cost') is not None else '待确认',' / '.join(rank.get(i,{'reasons':['等待商店稳定核验']})['reasons'])] for i,x in enumerate(s['shop'])])
         offers=s.get('recognized_offers',{})
         self.shop_equipment.setText('商店装备（尚未购买）：'+ '；'.join(f'槽位 {int(k)+1} · {v["name"]} · {v["cost"] if v.get("cost") is not None else "?"} 资金' for k,v in offers.items()) if offers else '')
+        if shop_review_note(s):self.shop_equipment.setText(self.shop_equipment.text()+'\n'+shop_review_note(s))
         for k,w in self.economy_fields.items():
             if k=='upgrade_cost':w.setSpecialValueText('已满级' if s.get('level')==6 else '未知')
             if not w.hasFocus():w.setValue(-1 if s[k] is None else s[k])
@@ -760,7 +815,7 @@ class MainWindow(QMainWindow):
         i=self.shop_table.currentRow()
         if i<0:return
         oid=self.store.state['shop'][i]['op_id'];opts=replacement_options(self.db,self.store.state,oid)[:4]
-        self.replacement_text.setText('\n'.join(f'替换 {o["name"]}：新增 {"、".join(o["gain"]) or "无"}；失去 {"、".join(o["loss"]) or "无"}' for o in opts) or '先在编队工坊录入战场干员')
+        self.replacement_text.setText('\n'.join(f'替换 {o["name"]}：新增 {"、".join(o["gain"]) or "无"}；失去 {"、".join(o["loss"]) or "无"}' for o in opts) or '先在首页的“阵容核对”中录入战场干员')
     def promotion_reward(self):
         names,ok=QInputDialog.getText(self,'晋升免费三选一','输入三个候选名称，以中文逗号或英文逗号分隔')
         if not ok:return
@@ -849,25 +904,27 @@ class MainWindow(QMainWindow):
         if i>=0 and self.storage.guides[i].get('team'):self.replace_team(self.storage.guides[i]['team'])
 
     def page_recognition(self):
-        self.window_combo=QComboBox();self.window_combo.setMinimumWidth(260);self.window_combo.currentIndexChanged.connect(self.reset_capture)
+        self.window_combo=QComboBox();self.window_combo.currentIndexChanged.connect(self.reset_capture)
         self.profile_combo=QComboBox();self.profile_combo.currentIndexChanged.connect(self.select_capture_profile)
         self.recognition_label=label('未连接游戏。建议使用窗口化或无边框窗口。','muted',True)
-        self.live_button=button('开始实时识别',self.toggle_live,True)
+        self.live_button=button('绑定并同步',self.bind_home_game,True)
         self.auto_apply_check=QCheckBox('连续稳定后自动更新局面');self.auto_apply_check.setChecked(self.settings['auto_apply']);self.auto_apply_check.toggled.connect(self.toggle_auto_apply)
         self.battle_check=QCheckBox('战场小人比对');self.battle_check.setChecked(self.settings['battle_enabled']);self.battle_check.toggled.connect(self.toggle_battle)
         self.canvas=CalibrationCanvas();self.canvas.selected.connect(self.add_region)
         self.recognition_table=table(['区域','识别结果','置信 / 相似度','原文']);self.recognition_table.setMinimumHeight(190)
         self.region_list=QListWidget();self.region_list.setMaximumHeight(150)
         preview=column(self.canvas,row(button('导入截图',self.import_screenshot),button('粘贴截图',self.paste_screenshot),button('截取画面',lambda:self.capture_once(False)),button('识别当前图',self.recognize_current)),self.recognition_label)
-        regions=column(label('自动定位 / 手动校准','section'),label('默认按当前画面的 LEVEL、回合、商品费用标记定位。升级或商品移位后重新定位；不固定商店格数。需要补充时，可拖框建立手动布局。','muted',True),
+        regions=column(label('手动校准','section'),label('默认自动定位，升级后重新寻找卡位。需要修正时可在预览上拖框并保存布局。','muted',True),
             self.region_list,button('移除所选区域',self.remove_region),button('另存布局',self.save_capture_profile),button('解锁全部手动字段',self.unlock_fields),
-            button('导出识别诊断',self.export_recognition),label('小人比对使用 143 名干员的正背面及待机动作；整备阶段生效。默认战场范围为画面中部偏左，整备范围跟随商店上沿。可拖框选择“战场 / 整备比对范围”，框住脚底位置范围。遮挡、皮肤和召唤物可能漏检；精锐、装备与完整阵容仍需核对。','muted',True),None)
-        regions.setMaximumWidth(280);split=QSplitter();split.addWidget(preview);split.addWidget(regions);split.setSizes([750,250])
+            button('导出识别诊断',self.export_recognition))
+        self.recognition_controls=regions
+        regions_scroll=scroll(regions);regions_scroll.setMinimumWidth(250);regions_scroll.setMaximumWidth(330)
+        split=QSplitter();split.addWidget(preview);split.addWidget(regions_scroll);split.setSizes([700,300])
         tabs=QTabWidget();tabs.addTab(split,'画面与区域');tabs.addTab(column(self.recognition_table,
             row(button('修正所选结果',self.correct_recognition),button('确认可用结果',self.apply_recognition,True),button('合并已识别装备到库存',self.merge_recognized_inventory)),
             label('置信度是识别模型分数，并非实测准确率。自动更新须达到阈值且连续多帧一致。','muted',True)),'识别结果与校正')
         self.recognition_tabs=tabs
-        self.opening_table=table(['盟约图标','状态','图标相似度']);self.opening_table.setIconSize(QSize(36,36));self.opening_table.setMinimumWidth(330)
+        self.opening_table=table(['盟约图标','状态','识别状态']);self.opening_table.setIconSize(QSize(36,36));self.opening_table.setMinimumWidth(330)
         self.opening_table.cellDoubleClicked.connect(lambda *_:self.correct_opening_icon())
         self.opening_summary=QPlainTextEdit();self.opening_summary.setReadOnly(True);self.opening_summary.setFont(QFont('Microsoft YaHei UI',11))
         self.opening_status=label('等待开局界面','accent',True);self.opening_status.setFixedHeight(32)
@@ -881,22 +938,31 @@ class MainWindow(QMainWindow):
         opening_actions=row(button('核对所选图标',self.correct_opening_icon),button('核对当前选组',self.correct_opening_side),self.opening_confirm_button);opening_actions.setFixedHeight(36)
         opening_hint=label('只比对盟约图标与高亮状态。有主核心的干员按主核心判断可用性；无主核心时才按全部附加盟约推算，不比对禁用干员头像。','muted',True);opening_hint.setMaximumHeight(44)
         opening_page=column(self.opening_status,opening_split,row(self.opening_review_button,self.opening_review_cancel),self.opening_auto_check,opening_actions,opening_hint,margin=10);opening_page.layout().setStretch(1,1)
-        tabs.addTab(opening_page,'开局禁选')
+        self.opening_page=opening_page
         self.refresh_windows();self.fill_capture_profiles()
-        return column(self.heading('画面识别','官方 PC 端 · 商店文字定位 + 战场小人模型比对 · 完全离线'),
-            row(self.window_combo,button('刷新窗口',self.refresh_windows),self.profile_combo,self.live_button),row(self.auto_apply_check,self.battle_check),tabs)
+        return column(label('窗口绑定和禁选确认在首页；这里调整布局、核对识别结果。','muted',True),
+            row(label('识别布局'),self.profile_combo,button('返回首页绑定',lambda:self.navigate('home'))),row(self.auto_apply_check,self.battle_check),tabs)
     def visible_opening(self):
         track=self.solo_briefing
+        def decorate(opening):
+            view=copy.deepcopy(opening)
+            if not self.review_opening and opening_key(view)==opening_key(self.store.state.get('opening')):
+                view['_confirmed']=True;view['_locked']=True
+            return view
         if track.result is self.last_recognition and self.last_recognition is not None:
             if track.departed:return None
             if track.opening:
-                view=copy.deepcopy(track.opening)
-                if track.held or track.uncertain:
+                view=decorate(track.opening)
+                if track.locked:
+                    view['_locked']=True
+                    view['_pending_change']=bool(track.candidate and opening_key(track.candidate)!=opening_key(track.opening))
+                elif track.held or track.uncertain:
                     view['_review_message']=track.message or '等待重新核对开局信息'
                     view['_review_blocked']=track.uncertain
                 return view
-        if (self.last_recognition or {}).get('opening'):return self.last_recognition['opening']
-        return self.store.state.get('opening') if self.store.state['phase']=='开局' else None
+        if (self.last_recognition or {}).get('opening'):return decorate(self.last_recognition['opening'])
+        saved=self.store.state.get('opening') if self.store.state['phase']=='开局' else None
+        return decorate(saved) if saved else None
     def opening_for_review(self):
         if self.solo_briefing.result is self.last_recognition and self.solo_briefing.opening:return self.solo_briefing.opening
         return (self.last_recognition or {}).get('opening') or self.store.state.get('opening')
@@ -911,13 +977,14 @@ class MainWindow(QMainWindow):
         if (opening or {}).get('context')=='in_match':layout='局内信息 · 保留当前对局'
         elif core_unrestricted(opening):layout='核心全部启用 · 无需选组'
         held=bool(opening and opening.get('_review_message'))
-        if held:status=opening['_review_message']
-        elif confirmed:status=('已自动确认' if meta.get('source')=='自动识别' else '已确认')+' · '+layout
+        if confirmed:status='已锁定 · '+layout+(' · 新选组核对中' if opening.get('_pending_change') else '')
+        elif held:status=opening['_review_message']
+        elif opening and opening.get('_locked'):status='预览已锁定 · '+layout+' · 待确认'
         elif problem:status=problem
         elif self.live and self.settings['opening_auto_confirm'] and not (self.last_recognition or {}).get('manual_opening'):status=layout+' · 等待连续稳定，也可直接确认'
         else:status=layout+' · 核对下方禁选后确认'
         bans='\n'.join(title+'：'+ban_summary(opening,kind) for kind,title in (('core','禁选核心'),('additional','禁选附加'))) if opening else ''
-        return {'visible':bool(opening),'enabled':bool(opening and not problem and not confirmed and not held),'status':status,'bans':bans,'button':'等待画面稳定' if held else '本局禁选已确认' if confirmed else '确认本局禁选'}
+        return {'visible':bool(opening),'enabled':bool(opening and not problem and not confirmed and not held),'status':status,'bans':bans,'locked':bool(confirmed or opening and opening.get('_locked')),'button':'本局禁选已锁定' if confirmed else '等待画面稳定' if held else '确认本局禁选'}
     def toggle_opening_auto_confirm(self,on):
         self.settings['opening_auto_confirm']=on;self.storage.save_settings();self.gate.reset();self.solo_briefing.restart_evidence()
         for check in (self.opening_auto_check,self.overlay.opening_auto_check):
@@ -925,14 +992,24 @@ class MainWindow(QMainWindow):
         self.refresh_opening();self.overlay.update_content()
     def refresh_opening(self):
         if not hasattr(self,'opening_table'):return
+        self.refresh_home_setup()
         self.opening_review_cancel.setVisible(self.review_opening)
         self.opening_review_button.setText('重新读取禁选' if self.review_opening else '局内重新核对禁选')
-        opening=self.opening_for_review();self.opening_summary.setPlainText(describe_opening(self.db,opening,self.store.state['target']))
+        opening=self.opening_for_review();display=copy.deepcopy(opening)
+        if display and not self.review_opening and opening_key(display)==opening_key(self.store.state.get('opening')):display['_confirmed']=True
+        summary=describe_opening(self.db,display,self.store.state['target'])
+        if self.opening_summary.toPlainText()!=summary:self.opening_summary.setPlainText(summary)
         confirmation=self.opening_confirmation();self.opening_confirm_button.setEnabled(confirmation['enabled']);self.opening_confirm_button.setText(confirmation['button'])
-        if not opening:self.opening_status.setText(confirmation['status'] if self.review_opening else '等待开局或局内信息界面');self.opening_table.setRowCount(0);return
+        opening_lock_style(self.opening_status,confirmation.get('locked',False))
+        if not opening:
+            self.opening_status.setText(confirmation['status'] if self.review_opening else '等待开局或局内信息界面');self.opening_table.setRowCount(0);self.opening_table_signature=None;return
         observed={e['name']:e for e in opening['core']+opening['additional']}
         matches={e['name']:e for e in (self.last_recognition or {}).get('icon_matches',[])}
         self.opening_status.setText(f'核心 {len(opening["core"])}/10 · 附加 {len(opening["additional"])}/16 · '+confirmation['status'])
+        locked=bool((self.visible_opening() or {}).get('_locked') or (not self.review_opening and opening_key(opening)==opening_key(self.store.state.get('opening'))))
+        signature=(opening_key(opening),locked)
+        if getattr(self,'opening_table_signature',None)==signature:return
+        self.opening_table_signature=signature
         scroll_pos=self.opening_table.verticalScrollBar().value();selected=self.opening_table.currentRow()
         if not hasattr(self,'opening_icon_paths'):
             data=json.loads((opening_assets()/'index.json').read_text('utf8'))
@@ -940,7 +1017,7 @@ class MainWindow(QMainWindow):
         rows=[]
         for cv in self.db.covenants:
             e=observed.get(cv['name'],{});match=matches.get(cv['name'])
-            rows.append([cv['name'],{'lit':'启用 / 亮','grey':'禁选 / 灰','unknown':'待确认'}[e.get('state','unknown')],f'{match["similarity"]:.1%}' if match else '待核对'])
+            rows.append([cv['name'],{'lit':'启用 / 亮','grey':'禁选 / 灰','unknown':'待确认'}[e.get('state','unknown')],'已锁定' if locked else f'{match["similarity"]:.1%}' if match else '待核对'])
         fill_table(self.opening_table,rows)
         for i,cv in enumerate(self.db.covenants):
             item=self.opening_table.item(i,0);item.setData(Qt.ItemDataRole.UserRole,cv['name'])
@@ -973,7 +1050,7 @@ class MainWindow(QMainWindow):
         self.last_recognition={**(self.last_recognition or {}),'opening':draft,'fields':[],'mode':'opening','icon_matches':[],'manual_opening':True}
         self.gate.reset();self.refresh_opening();self.refresh_home();self.overlay.update_content();self.notify('已修正预览，点击“确认本局禁选”后生效')
     def begin_opening_review(self):
-        self.review_opening=True;self.capture_generation+=1;self.gate.reset();self.solo_briefing.reset();self.last_recognition=None
+        self.review_opening=True;self.capture_generation+=1;self.gate.reset();self.battle_gate.reset();self.solo_briefing.reset();self.last_recognition=None
         self.clear_shop_tracking();self.refresh_opening();self.overlay.update_content()
         self.notify('请在游戏内打开本局信息；此次核对保留阵容、装备、回合与资金')
         self.capture_opening_review()
@@ -982,7 +1059,7 @@ class MainWindow(QMainWindow):
         if self.capture_busy:QTimer.singleShot(150,self.capture_opening_review);return
         self.capture_once()
     def end_opening_review(self):
-        self.review_opening=False;self.capture_generation+=1;self.gate.reset();self.solo_briefing.reset();self.last_recognition=None
+        self.review_opening=False;self.capture_generation+=1;self.gate.reset();self.battle_gate.reset();self.solo_briefing.reset();self.last_recognition=None
         self.refresh_opening();self.refresh_home();self.overlay.update_content()
     def prepare_opening_session(self,opening):
         if opening.get('context')=='in_match':return
@@ -1006,7 +1083,7 @@ class MainWindow(QMainWindow):
         field={'key':'opening_snapshot','value':json.dumps(opening,ensure_ascii=False,sort_keys=True),'confidence':1 if manual else confidence}
         self.cancel_ai();self.ai_result=None;self.auto_keys.clear()
         self.change(lambda s:apply_fields(s,[field],manual),'手动确认本局禁选' if manual else '稳定识别后自动确认本局禁选')
-        if opening['mode'] in ('solo','fixed'):self.solo_briefing.seed(opening)
+        if opening['mode'] in ('solo','fixed','coop'):self.solo_briefing.seed(opening)
         self.review_opening=False
         self.overlay.update_content();self.refresh_opening()
         self.notify(('本局禁选已确认' if manual else '本局禁选已自动确认')+'；本地推荐已更新')
@@ -1021,24 +1098,30 @@ class MainWindow(QMainWindow):
             if opening_key(json.loads(field['value']))==opening_key(opening) and self.confirm_opening(opening,confidence=field['confidence']):return
         meta=self.store.state['field_meta'].get('opening_snapshot',{})
         tracked=self.solo_briefing.result is self.last_recognition and self.solo_briefing.opening is not None
-        uncertain=self.solo_briefing.conflict if tracked else bool(confirmation_problem(self.db,opening) or opening_key(opening)!=opening_key(self.store.state.get('opening')))
+        uncertain=(self.solo_briefing.conflict and not self.solo_briefing.locked) if tracked else bool(confirmation_problem(self.db,opening) or opening_key(opening)!=opening_key(self.store.state.get('opening')))
         if self.store.state.get('opening') and uncertain:
             self.store.state['field_meta']['opening_snapshot']={**meta,'uncertain':True}
         self.refresh_all()
     def refresh_windows(self):
         if not hasattr(self,'window_combo'):return
+        previous=self.window_combo.currentData();selected=0
         self.window_combo.blockSignals(True);self.window_combo.clear();self.window_combo.addItem('选择游戏 / 模拟器窗口',None)
-        for w in enum_windows():self.window_combo.addItem(f'{w["title"]}  ({w["width"]}×{w["height"]})',w)
+        for w in enum_windows():
+            self.window_combo.addItem(f'{w["title"]} · PID {w["pid"]}',w)
+            if previous and (w['hwnd'],w['pid'])==(previous['hwnd'],previous['pid']):selected=self.window_combo.count()-1
+        self.window_combo.setCurrentIndex(selected)
         self.window_combo.blockSignals(False)
-        if hasattr(self,'live'):self.reset_capture()
+        if previous and not selected:self.reset_capture()
+        self.refresh_home_setup()
     def reset_capture(self):
-        self.capture_generation+=1;self.gate.reset();self.live=False;self.last_recognition=None
+        self.capture_generation+=1;self.gate.reset();self.battle_gate.reset();self.live=False;self.last_recognition=None
         self.review_opening=False
         self.solo_briefing.reset()
         self.clear_shop_tracking()
         stop_capture()
         if hasattr(self,'canvas'):self.canvas.detected_regions=[];self.canvas.update()
         if hasattr(self,'live_button'):self.live_button.setText('开始实时识别')
+        self.refresh_home_setup()
     def fill_capture_profiles(self):
         self.profile_combo.blockSignals(True);self.profile_combo.clear();self.profile_combo.addItem('官方 PC · 自动定位','')
         for p in self.settings['capture_profiles']:self.profile_combo.addItem(p['name'],p['id'])
@@ -1089,7 +1172,7 @@ class MainWindow(QMainWindow):
         if not ok or not name.strip():return
         h,w=self.frame.shape[:2];pid=str(uuid.uuid4());self.settings['capture_profiles'].append({'id':pid,'name':name.strip(),'regions':copy.deepcopy(self.canvas.regions),'aspect':w/h,'reference_size':[w,h]})
         self.settings['capture_profile']=pid;self.storage.save_settings();self.fill_capture_profiles();self.notify('识别布局已保存；同宽高比下按比例适配尺寸')
-    def toggle_auto_apply(self,on):self.settings['auto_apply']=on;self.storage.save_settings();self.gate.reset()
+    def toggle_auto_apply(self,on):self.settings['auto_apply']=on;self.storage.save_settings();self.gate.reset();self.battle_gate.reset();self.refresh_home_setup()
     def toggle_battle(self,on):
         self.settings['battle_enabled']=on;self.storage.save_settings();self.reset_capture()
         if not on:
@@ -1097,10 +1180,8 @@ class MainWindow(QMainWindow):
     def unlock_fields(self):
         for meta in self.store.state['field_meta'].values():meta['locked']=False
         self.storage.save_state(self.store.state);self.notify('已解除手动锁定，后续可靠识别可更新这些字段')
-    def set_frame(self,frame):
-        self.watch_source=None
-        if hasattr(self,'shop_highlight'):self.shop_highlight.hide()
-        self.canvas.tracking_regions=[]
+    def set_frame(self,frame,preserve_tracking=False):
+        if not preserve_tracking:self.clear_shop_tracking()
         self.frame=frame;rgb=cv2.cvtColor(frame,cv2.COLOR_BGR2RGB);h,w=rgb.shape[:2]
         image=QImage(rgb.data,w,h,rgb.strides[0],QImage.Format.Format_RGB888).copy();self.canvas.set_image(QPixmap.fromImage(image))
     def import_screenshot(self):
@@ -1120,44 +1201,85 @@ class MainWindow(QMainWindow):
         self.reset_capture();self.set_frame(cv2.cvtColor(arr,cv2.COLOR_RGB2BGR));self.recognize_current()
     def capture_once(self,recognize=True):
         if self.capture_busy:self.notify('上一帧仍在处理中');return
+        if self.battle_busy and not self.live:self.notify('上次战场比对尚未结束，请稍后重试');return
         target=self.window_combo.currentData()
         if not target:self.notify('请先在“画面识别”中选择游戏窗口');return
         self.capture_busy=True;gen=self.capture_generation;before=fingerprint(self.store.state);profile=copy.deepcopy(self.active_profile());profile['regions']=copy.deepcopy(self.canvas.regions);profile['battle_enabled']=self.settings['battle_enabled']
         profile['opening_review']=self.review_opening;profile['in_match']=self.store.state['phase'] in ('整备','作战')
+        defer_battle=bool(self.live and recognize and profile['battle_enabled'])
+        before_hud=fingerprint({**self.store.state,'units':[]});before_roster=roster_signature(self.store.state)
         def work():
             frame=capture_window(target['hwnd'],target['pid'],keep_alive=self.live);captured=time.monotonic()
-            result=self.recognizer.recognize(frame,profile) if recognize else None
+            result=self.recognizer.recognize(frame,{**profile,'battle_enabled':False} if defer_battle else profile) if recognize else None
             if result is not None:result['capture_source']={'hwnd':target['hwnd'],'pid':target['pid'],'captured':captured,'size':[frame.shape[1],frame.shape[0]]}
             return frame,result
         def result(payload):
             if gen!=self.capture_generation:return
-            frame,res=payload;self.set_frame(frame)
-            if res:self.receive_recognition(res,before)
+            frame,res=payload;self.set_frame(frame,preserve_tracking=bool(self.live and res))
+            if res:
+                if defer_battle:update_roster_status(self.store.state)
+                # Concurrent sprite completion changes the roster, not the HUD.
+                # Do not discard an otherwise current shop result for that reason.
+                hud_only=defer_battle and not any(f['key'].startswith(('field:','bench:','elite:','gear:','sprite:')) for f in res['fields'])
+                expected=fingerprint(self.store.state) if hud_only and before_hud==fingerprint({**self.store.state,'units':[]}) else before
+                self.receive_recognition(res,expected)
+                if defer_battle and before_roster==roster_signature(self.store.state):self.queue_battle_recognition(frame,res,profile)
         def failure(message):
             if gen!=self.capture_generation:return
+            self.capture_generation+=1;self.battle_gate.reset()
             self.clear_shop_tracking()
-            self.recognition_status='识别暂停 / '+message;self.recognition_label.setText(self.recognition_status);self.gate.reset();self.notify(message)
+            self.recognition_status=('等待游戏画面恢复 · 自动重试 / ' if self.live else '截取未完成 / ')+message;self.recognition_label.setText(self.recognition_status);self.gate.reset();self.notify(message)
             if self.live and self.solo_briefing.opening:
                 gap={'fields':[]};self.solo_briefing.observe(self.db,gap,self.settings['recognition_threshold'],self.settings['stable_frames']);self.last_recognition=gap
             mark_uncertain(self.store.state,[{'key':k,'value':None,'confidence':0} for k in ('gold','round','phase','shop_snapshot')],self.settings['recognition_threshold'])
             if self.settings['battle_enabled']:mark_missing(self.store.state,set());update_roster_status(self.store.state)
             self.refresh_home();self.overlay.update_content()
         self.run_job(work,result,failure,lambda:setattr(self,'capture_busy',False))
+    def queue_battle_recognition(self,frame,result,profile):
+        # The slow sprite task must neither hold the shop queue nor count the
+        # same HUD observation twice. Only one sprite task may be in flight.
+        if self.battle_busy or not self.live or not self.settings['battle_enabled'] or result.get('opening') or self.review_opening:return
+        self.battle_busy=True;gen=self.capture_generation;session=self.store.state['session_id']
+        signature=roster_signature(self.store.state);source_time=result['time'];source_fields={f['key']:f['value'] for f in result['fields']}
+        def current():
+            return (gen==self.capture_generation and self.live and self.settings['battle_enabled']
+                    and session==self.store.state['session_id'] and signature==roster_signature(self.store.state)
+                    and time.time()-source_time<10 and not self.review_opening
+                    and all(source_fields.get(k) is None or source_fields[k]==self.store.state[k] for k in ('round','phase')))
+        def receive(battle):
+            if not current():return
+            fields=battle['fields'];stable=self.battle_gate.accept(fields,self.settings['recognition_threshold'])
+            if self.settings['auto_apply']:
+                mark_missing(self.store.state,{f['key'] for f in stable});apply_fields(self.store.state,stable);update_roster_status(self.store.state)
+                self.store.state['revision']+=1;self.store.state['updated_at']=time.time();self.refresh_all()
+            # Never draw delayed sprite boxes over a newer, unrelated image.
+            if self.last_recognition and self.last_recognition['time']==source_time:
+                self.last_recognition={**self.last_recognition,'battlefield':battle['battlefield'],
+                    'fields':self.last_recognition['fields']+fields,'regions':self.last_recognition['regions']+battle['regions']}
+                self.canvas.detected_regions=self.last_recognition['regions'];self.canvas.update()
+            self.maybe_auto_analyze()
+        def failed(message):
+            if not current():return
+            self.battle_gate.reset();mark_missing(self.store.state,set());update_roster_status(self.store.state);self.refresh_all()
+            self.notify('战场比对暂未完成；商店识别继续，阵容沿用上次记录')
+        self.run_job(lambda:self.recognizer.recognize_battle(frame,result,profile),receive,failed,lambda:setattr(self,'battle_busy',False))
     def recognize_current(self):
         if self.frame is None:self.notify('先载入或截取画面');return
         if self.capture_busy:self.notify('上一帧仍在处理中');return
+        if self.battle_busy:self.notify('上次战场比对尚未结束，请稍后重试');return
         self.capture_busy=True;gen=self.capture_generation;before=fingerprint(self.store.state);frame=self.frame.copy();profile=copy.deepcopy(self.active_profile());profile['regions']=copy.deepcopy(self.canvas.regions);profile['battle_enabled']=self.settings['battle_enabled']
         profile['opening_review']=self.review_opening;profile['in_match']=self.store.state['phase'] in ('整备','作战')
         self.recognition_label.setText('正在离线识别，首次加载模型需要一些时间…')
         self.run_job(lambda:self.recognizer.recognize(frame,profile),lambda r:self.receive_recognition(r,before) if gen==self.capture_generation else None,
                      lambda msg:(self.recognition_label.setText(msg),self.notify(msg)),lambda:setattr(self,'capture_busy',False))
     def receive_recognition(self,result,before):
+        # Tracking follows this capture, independently of edits to tactical state.
+        self.shop_watch.accept(self.db,result,self.settings['recognition_threshold'],self.settings['stable_frames'],self.frame)
+        self.watch_source=result.get('capture_source');self.tracking_frame=self.frame.copy() if self.frame is not None else None
+        self.refresh_shop_matches()
         if before!=fingerprint(self.store.state):return
         entering_opening=bool(result.get('opening')) and not bool(self.visible_opening())
         self.last_recognition=result;fields=result['fields'];threshold=self.settings['recognition_threshold']
-        self.shop_watch.accept(self.db,result,threshold,self.settings['stable_frames'])
-        self.watch_source=result.get('capture_source');self.tracking_frame=self.frame.copy() if self.frame is not None else None
-        self.refresh_shop_matches()
         self.canvas.detected_regions=result.get('regions',[]);self.canvas.update()
         fill_table(self.recognition_table,[[field_label(f['key']),f['label'],f'{f["confidence"]:.1%} · {f["method"]}',f['raw']] for f in fields])
         good=sum(f['value'] is not None and f['confidence']>=threshold for f in fields)
@@ -1169,14 +1291,14 @@ class MainWindow(QMainWindow):
         stable=self.gate.accept(fields,threshold)
         if self.live:
             prior=self.store.state.get('opening')
-            if not self.solo_briefing.opening and not self.solo_briefing.departed and prior and prior['mode'] in ('solo','fixed') and self.store.state['phase']=='开局':self.solo_briefing.seed(prior)
+            if not self.review_opening and not self.solo_briefing.opening and not self.solo_briefing.departed and prior and prior['mode'] in ('solo','fixed','coop') and self.store.state['phase']=='开局':self.solo_briefing.seed(prior)
             if self.solo_briefing.observe(self.db,result,threshold,self.settings['stable_frames']):
-                if entering_opening:self.recognition_tabs.setCurrentIndex(2)
+                if entering_opening:self.open_home_tab('bans',False)
                 accepted=[self.solo_briefing.ready_field] if self.solo_briefing.ready_field else []
                 self.receive_opening({**result,'opening':self.solo_briefing.opening},accepted,before);return
         else:self.solo_briefing.reset()
         if result.get('opening'):
-            if entering_opening:self.recognition_tabs.setCurrentIndex(2)
+            if entering_opening:self.open_home_tab('bans',False)
             self.receive_opening(result,stable,before);return
         if self.live and self.settings['auto_apply'] and before==fingerprint(self.store.state):
             stable_values={f['key']:f['value'] for f in stable}
@@ -1204,7 +1326,7 @@ class MainWindow(QMainWindow):
         i=self.recognition_table.currentRow()
         if not self.last_recognition or i<0 or i>=len(self.last_recognition['fields']):return
         f=self.last_recognition['fields'][i]
-        if f['key']=='opening_snapshot':self.recognition_tabs.setCurrentIndex(2);self.notify('请在“开局禁选”核对图标或当前选组');return
+        if f['key']=='opening_snapshot':self.open_home_tab('bans');self.notify('请在“开局禁选”核对图标或当前选组');return
         if f['key']=='shop_snapshot':self.notify('请修正具体商品；整体核验由下一帧重新计算');return
         text,ok=QInputDialog.getText(self,'修正识别','输入准确名称、数字或阶段（整备 / 作战 / 结束）',text=str(f['label']))
         if not ok:return
@@ -1241,7 +1363,7 @@ class MainWindow(QMainWindow):
             if self.last_recognition.get('battlefield') is not None:mark_missing(s,{f['key'] for f in fields})
             apply_fields(s,fields,True)
             if self.last_recognition.get('battlefield') is not None:update_roster_status(s)
-        self.change(apply,'手动确认识别结果');self.notify('已应用可用结果；小人比对可能不完整，请在编队工坊补齐并核对阵容')
+        self.change(apply,'手动确认识别结果');self.notify('已应用可用结果；小人比对可能不完整，请在首页的“阵容核对”中补齐并确认')
     def export_recognition(self):
         if self.frame is None or not self.last_recognition:self.notify('请先识别一帧游戏画面');return
         folder=QFileDialog.getExistingDirectory(self,'选择诊断保存位置')
@@ -1258,11 +1380,13 @@ class MainWindow(QMainWindow):
         if not values:self.notify('尚未识别到装备名称');return
         self.change(lambda s:(s.update(inventory=values),s.update(recognized_inventory={})),'以确认的装备区域替换库存记录')
     def toggle_live(self):
+        self.capture_generation+=1
         if not self.live:
             if not self.window_combo.currentData():self.error('请先选择官方 PC 端窗口');return
-            self.gate.reset();self.solo_briefing.reset();self.last_capture=0
+            self.gate.reset();self.battle_gate.reset();self.solo_briefing.reset();self.last_capture=0
         self.live=not self.live;self.live_button.setText('暂停实时识别' if self.live else '开始实时识别');self.overlay.update_content()
         if not self.live:stop_capture();self.clear_shop_tracking()
+        self.refresh_home_setup()
     def tick(self):
         self.update_shop_highlight()
         if self.live and not self.capture_busy and time.monotonic()-self.last_capture>=self.settings['capture_interval']:
@@ -1283,17 +1407,17 @@ class MainWindow(QMainWindow):
         for title,w in [('配置名称',self.api_name),('API 地址',self.api_url),('模型名称',self.api_model),('API 密钥',self.api_key),('每百万输入价格（自定币种）',self.api_input_price),('每百万输出价格（同币种）',self.api_output_price)]:form.addRow(title,w)
         self.ai_status=label('AI 关闭 · 本地推荐始终可用','accent',True);self.ai_usage=label('','muted',True)
         self.ai_output=QPlainTextEdit();self.ai_output.setReadOnly(True);self.ai_output.setMinimumHeight(170)
-        self.ai_pins=TrackingChoices(self.toggle_tracking,True,self.open_tracking);self.ai_choices=TrackingChoices(self.toggle_tracking)
+        self.ai_pins=TrackingChoices(self.toggle_tracking,True,self.open_tracking);self.ai_choices=TrackingChoices(self.toggle_tracking,bulk=self.track_recommended_formation)
         self.ai_sources=label('','muted',True);self.ai_sources.setTextFormat(Qt.TextFormat.RichText);self.ai_sources.setOpenExternalLinks(True)
         settings=column(row(self.ai_profile_combo,button('新配置',self.new_api_profile),self.api_delete_button),formbox,row(button('保存配置',self.save_api_profile,True),button('测试连接',lambda:self.analyze(test=True))),self.ai_usage,
             label('启用后只向所配置服务发送当前局面与相关规则。截图与密钥不会进入阵容分享文件。兼容 Chat Completions 接口。','muted',True),None)
-        result=column(self.ai_pins,self.ai_status,self.ai_output,self.ai_sources,self.ai_choices,row(button('立即分析',self.analyze,True),button('深入分析',lambda:self.analyze(deep=True)),button('取消请求',self.cancel_ai)))
-        result.layout().setStretch(2,1)
-        tabs=QTabWidget();tabs.addTab(result,'回合建议');tabs.addTab(settings,'自定义 API 配置')
+        self.ai_route_lock=RouteLockControl(self)
+        result=column(self.ai_pins,self.ai_status,self.ai_route_lock,self.ai_output,self.ai_sources,self.ai_choices,row(button('立即分析',self.analyze,True),button('深入分析',lambda:self.analyze(deep=True)),button('取消请求',self.cancel_ai)))
+        result.layout().setStretch(3,1)
+        self.ai_results_page=result
         self.fill_ai_profiles()
         self.ai_auto.toggled.connect(lambda on:self.set_setting('ai_auto',on));self.ai_change.toggled.connect(lambda on:self.set_setting('ai_on_change',on))
-        return column(self.heading('AI 回合教练','本地计算先给出可行候选，AI 整理优先级；返回结果再次核验资金、商品与装备条件。'),
-            row(self.ai_toggle,self.ai_auto),self.ai_change,tabs)
+        return settings
     def set_setting(self,key,value):self.settings[key]=value;self.storage.save_settings()
     def fill_ai_profiles(self):
         self.ai_profile_combo.blockSignals(True);self.ai_profile_combo.clear();self.ai_profile_combo.addItem('选择 API 配置','')
@@ -1306,6 +1430,7 @@ class MainWindow(QMainWindow):
         for w,k in [(self.api_name,'name'),(self.api_url,'url'),(self.api_model,'model')]:w.setText(p.get(k,''))
         self.api_key.clear();self.api_input_price.setValue(p.get('input_price',0));self.api_output_price.setValue(p.get('output_price',0))
         self.storage.save_settings()
+        self.refresh_home_setup()
     def new_api_profile(self):self.ai_profile_combo.setCurrentIndex(0);self.api_name.setFocus()
     def delete_api_profile(self):
         pid=self.ai_profile_combo.currentData()
@@ -1332,6 +1457,7 @@ class MainWindow(QMainWindow):
         self.settings['ai_enabled']=on
         if not on:self.cancel_ai()
         self.storage.save_settings();self.refresh_ai()
+        self.refresh_home_setup()
         if hasattr(self,'overlay'):self.overlay.update_content()
     def cancel_ai(self):
         self.ai_generation+=1
@@ -1345,6 +1471,9 @@ class MainWindow(QMainWindow):
         # Partial sprite observations are covered by the explicit roster
         # confirmation. A rejected candidate is not a required roster slot.
         keys=[f['key'] for f in (self.last_recognition or {}).get('fields',[]) if not f['key'].startswith('sprite:')]
+        # A confirmed partial shop can support bounded recommendations. Its
+        # explicit pending slots are not required inputs or presumed empty slots.
+        keys=[k for k in keys if not pending_shop_field(s,k)]
         if 'battle_roster' in s['field_meta']:
             update_roster_status(s);keys.append('battle_roster')
         essential=['phase','round','gold','level']
@@ -1379,6 +1508,7 @@ class MainWindow(QMainWindow):
         self.run_job(lambda:self.coach.run(self.db,s,config,profile,key,deep,test,token,tracked),done,
             lambda msg:self.ai_status.setText(msg) if gen==self.ai_generation else None,finished)
     def refresh_ai(self):
+        self.ai_route_lock.refresh()
         self.fill_tracking(self.ai_pins,self.ai_choices)
         p=next((p for p in self.settings['ai_profiles'] if p['id']==self.settings['ai_profile']),{})
         cost=(self.coach.input_tokens*p.get('input_price',0)+self.coach.output_tokens*p.get('output_price',0))/1_000_000
@@ -1397,32 +1527,11 @@ class MainWindow(QMainWindow):
             formatted+='\n\n目标盟约：'+target['name']+'\n'+target.get('reason','')+'\n'+target.get('transition','')
         self.ai_output.setPlainText(formatted)
 
-    def page_settings(self):
-        self.shortcut_edits={};hotkey_box=QWidget();form=QFormLayout(hotkey_box)
-        for key,title in [('main_hotkey','主窗口最小化 / 恢复'),('overlay_hotkey','悬浮窗最小化 / 恢复'),('capture_hotkey','重新截取识别'),('coach_hotkey','手动 AI 分析')]:
-            edit=QKeySequenceEdit(QKeySequence(self.settings[key]));edit.setMaximumSequenceLength(1);self.shortcut_edits[key]=edit;form.addRow(title,edit)
-        form.addRow(button('保存并检查快捷键冲突',self.save_hotkeys,True))
-        self.opacity_spin=spin(round(self.settings['overlay_opacity']*100),40,100);self.scale_spin=spin(self.settings['overlay_scale'],80,150);self.floating_size_spin=spin(self.settings['floating_size'],40,80)
-        self.motion_check=QCheckBox('减少动效');self.motion_check.setChecked(self.settings['reduce_motion'])
-        display=QWidget();df=QFormLayout(display);df.addRow('悬浮透明度 %',self.opacity_spin);df.addRow('悬浮文字缩放 %',self.scale_spin);df.addRow('悬浮图标尺寸',self.floating_size_spin);df.addRow(self.motion_check)
-        self.interval_spin=QDoubleSpinBox();self.interval_spin.setRange(.5,10);self.interval_spin.setSingleStep(.5);self.interval_spin.setValue(self.settings['capture_interval'])
-        self.threshold_spin=QDoubleSpinBox();self.threshold_spin.setRange(.80,.99);self.threshold_spin.setDecimals(2);self.threshold_spin.setSingleStep(.01);self.threshold_spin.setValue(self.settings['recognition_threshold'])
-        self.stability_spin=spin(self.settings['stable_frames'],2,6);self.timeout_spin=spin(self.settings['ai_timeout'],5,120);self.rate_spin=spin(self.settings['ai_min_interval'],5,120);self.limit_spin=spin(self.settings['ai_limit'],1,999)
-        perf=QWidget();pf=QFormLayout(perf)
-        for title,w in [('识别间隔（秒）',self.interval_spin),('最低识别分数',self.threshold_spin),('连续一致帧数',self.stability_spin),('AI 超时（秒）',self.timeout_spin),('AI 最小请求间隔（秒）',self.rate_spin),('每局 AI 请求上限',self.limit_spin)]:pf.addRow(title,w)
-        self.data_info=label(self.database_info(),'muted',True)
-        module_text='1 图鉴搜索  /  2 详情对比  /  3 阵容编辑  /  4 盟约计算\n5 层数收益  /  6 技能建议  /  7 装备合成  /  8 策略指令\n9 阵容攻略  /  10 本地补强  /  11 商店晋升  /  12 资金规划\n13 对局悬浮  /  14 保存分享  /  B 截图识别  /  C 实时识别  /  AI 回合教练'
-        content=column(self.heading('数据与设置','离线资料、窗口行为和识别参数由你掌控。所有用户记录保存在本机。'),
-            row(card('全局快捷键',hotkey_box),card('窗口与动效',display,button('保存外观',self.save_display))),
-            card('识别与响应控制',perf,button('保存运行参数',self.save_runtime)),
-            card('数据库与来源',self.data_info,row(button('导入新版规则 JSON',self.import_database),button('打开用户数据目录',lambda:os.startfile(self.storage.root)),button('查看全部来源',self.show_sources))),
-            card('17 个模块',label(module_text,wrap=True),label(__version__+' 开发预览：识别布局需在实际 PC 游戏画面校准；精锐图标、装备图标与空槽自动识别尚无游戏样本验收，支持文字区域识别和手动维护。','muted',True)),
-            card('资源与许可',label('PRTS Wiki 为主要资料来源，SquadPool 补充价格。文字按来源标示的 CC BY-NC-SA 3.0 保留署名；游戏图片版权归鹰角网络及相关权利人。\n界面参照卫戍协议默认终端：状态轨道、切角双框、环形盟约容器和调度卡槽。助手控件自行绘制，按桌面资料阅读需要调整。','muted',True)),
-            button('完全退出助手',self.quit_app))
-        return scroll(content)
+    def page_settings(self):return self.build_settings()
+
     def database_info(self):
         m=self.db.raw['metadata']
-        return f'{m["version"]}  /  采集日期 {m["as_of"]}\n干员 {len(self.db.ops)} · 盟约 {len(self.db.covenants)} · 装备 {len(self.db.equipment)} · 策略指令 {len(self.db.commands)} · 技能 {len(self.db.skills)}\n头像与立绘通过 operator_id 从两份独立 SQLite 图片库读取。\n{m["recommendation_note"]}'
+        return f'{m["version"]}  /  资料日期 {m["as_of"]}\n干员 {len(self.db.ops)} · 盟约 {len(self.db.covenants)} · 装备 {len(self.db.equipment)} · 策略指令 {len(self.db.commands)} · 技能 {len(self.db.skills)}\n{m["recommendation_note"]}'
     def save_hotkeys(self):
         values={k:w.keySequence().toString(QKeySequence.SequenceFormat.PortableText) for k,w in self.shortcut_edits.items()};old={k:self.settings[k] for k in values}
         self.settings.update(values)
@@ -1436,7 +1545,7 @@ class MainWindow(QMainWindow):
     def save_runtime(self):
         self.settings.update(capture_interval=self.interval_spin.value(),recognition_threshold=self.threshold_spin.value(),stable_frames=self.stability_spin.value(),
                              ai_timeout=self.timeout_spin.value(),ai_min_interval=self.rate_spin.value(),ai_limit=self.limit_spin.value())
-        self.gate=StabilityGate(self.settings['stable_frames']);self.storage.save_settings();self.notify('运行参数已保存')
+        self.gate=StabilityGate(self.settings['stable_frames']);self.battle_gate=StabilityGate(self.settings['stable_frames']);self.storage.save_settings();self.notify('运行参数已保存')
     def import_database(self):
         path,_=QFileDialog.getOpenFileName(self,'导入规程数据库','','JSON (*.json)')
         if not path:return

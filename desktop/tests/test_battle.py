@@ -39,13 +39,16 @@ def test_ambiguous_manual_copy_does_not_duplicate_or_overwrite():
     assert s['field_meta']['sprite:a']['uncertain']
 
 
-def test_missing_is_retained_but_not_used_for_covenants_or_actions():
+def test_missing_contributes_to_planning_but_actions_need_review():
     db=Database();s=new_state();apply_fields(s,[observed()]);u=s['units'][0]
     u.update(elite=True,sprite_elite_unknown=False,equipment=['维式重锤'])
     mark_missing(s,set());assert len(s['units'])==1 and u['sprite_missing']
-    assert not any(c['count'] for c in covenant_status(db,s))
+    assert any(c['count'] and c['needs_review'] for c in covenant_status(db,s))
     assert not validate_actions(db,s,[{'type':'move','uid':u['uid'],'zone':'bench'}])[0]['valid']
-    assert make_context(db,s)['state']['units']==[]
+    context=make_context(db,s)
+    assert context['state']['units'][0]['uid']==u['uid']
+    assert context['state']['units'][0]['observation_status']=='needs_review'
+    assert context['roster_observation']['pending_uids']==[u['uid']]
     apply_fields(s,[observed()]);assert not u['sprite_missing'] and u['elite'] and u['equipment']
 
 

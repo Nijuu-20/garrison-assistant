@@ -77,9 +77,21 @@ def test_partial_hud_does_not_flicker_out_of_briefing(db):
     weak={'fields':[{'key':'phase','value':'整备','confidence':.99}]}
     for now in range(2,7):assert push(t,db,weak,now) and not t.departed
 
-def test_multiplayer_path_is_not_changed(db):
-    t=SoloBriefing();a=sample(db);a['opening']['mode']='coop'
-    assert not push(t,db,a) and not t.opening
+def test_multiplayer_stable_snapshot_is_locked_without_a_side_choice(db):
+    t=SoloBriefing();a=sample(db);a['opening'].update(mode='coop',selected=None,groups={})
+    a['fields'][0]['value']=json.dumps(a['opening'])
+    assert push(t,db,a) and not t.locked
+    push(t,db,a,2);assert t.locked and t.ready_field and t.opening['selected'] is None
+    frozen=t.opening
+    push(t,db,{'fields':[]},3);push(t,db,a,4)
+    assert t.locked and t.opening is frozen
+
+
+def test_locked_content_does_not_replace_detection_details_each_frame(db):
+    t=SoloBriefing();a=sample(db);push(t,db,a);push(t,db,a,2);frozen=t.opening
+    jitter=copy.deepcopy(a);jitter['opening']['core'][0]['similarity']=.95
+    for n in range(3,8):push(t,db,jitter,n)
+    assert t.locked and t.opening is frozen and 'similarity' not in t.opening['core'][0]
 
 def test_low_confidence_cannot_auto_confirm(db):
     t=SoloBriefing();a=sample(db);a['fields'][0]['confidence']=.4

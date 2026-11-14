@@ -1,0 +1,52 @@
+[
+  {
+    "level": 1,
+    "source": "desktop\\build\\level-transition\\pc-level1-unaffordable.png",
+    "rect": [
+      0.35859375,
+      0.8173611111111112,
+      0.030859375000000022,
+      0.04513888888888884
+    ]
+  },
+  {
+    "level": 2,
+    "source": "desktop\\build\\level-transition\\pc-level2.jpg",
+    "rect": [
+      0.244140625,
+      0.8168402777777778,
+      0.03125,
+      0.04513888888888895
+    ]
+  },
+  {
+    "level": 3,
+    "source": "desktop\\build\\level-transition\\pc-level3.jpg",
+    "rect": [
+      0.244140625,
+      0.8168402777777778,
+      0.03125,
+      0.04513888888888895
+    ]
+  },
+  {
+    "level": 4,
+    "source": "desktop\\build\\level-transition\\pc-level4.jpg",
+    "rect": [
+      0.130859375,
+      0.8168402777777778,
+      0.03076171875,
+      0.04513888888888895
+    ]
+  },
+  {
+    "level": 5,
+    "source": "desktop\\build\\recognition-real\\pc-level5.png",
+    "rect": [
+      0.13205644488334656,
+      0.8148677614000109,
+      0.028225809335708618,
+      0.05242354075113931
+    ]
+  }
+]

@@ -49,7 +49,9 @@ checks.append({'test':'operators occluded; summons, boss, terrain and shop retai
 recognizer=Recognizer(Database());recognizer.battle=detector
 result=recognizer.recognize(frame);values={f['key']:f['value'] for f in result['fields']}
 checks.append({'test':'full OCR + sprites pipeline round14','passed':all(values.get(k)==v for k,v in [('round',14),('level',6),('gold',2),('phase','整备')]) and result['battlefield']['active'],'elapsed_ms':result['elapsed_ms']})
-checks.append({'test':'silver unaffordable prices retained; unmapped Stormeye abstains','passed':len(result['shop_slots'])==6 and all(values.get(f'cost:{i}')==v for i,v in enumerate([3,2,3,3,4,3])) and values['shop_snapshot'] is None and values['offer:3'] is None and values['offer:5'] is None})
+snapshot=next(f for f in result['fields'] if f['key']=='shop_snapshot')
+accepted=json.loads(snapshot['value'])
+checks.append({'test':'silver prices retained; verified cards publish while unmapped Stormeye abstains','passed':len(result['shop_slots'])==6 and all(values.get(f'cost:{i}')==v for i,v in enumerate([3,2,3,3,4,3])) and snapshot['partial'] and snapshot['pending_slots']==[3,5] and len(accepted)==8 and not any(f['key'].endswith((':3',':5')) for f in accepted) and values['offer:3'] is None and values['offer:5'] is None})
 (OUT/'pc-round14-result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),'utf8')
 report={'version':__version__,'frames':reports,'checks':checks,'passed':all(c['passed'] for c in checks),
         'limitations':['Three screenshots from two preparation states; two are different idle instants of the same round14 lineup.','Default skins, Closure layout only. Results are partial, not a population accuracy measurement.','Elite status, equipment and missing units require review; mechanic is missed in the round14 fixture.','Stormeye occurs as a prototype of several records, not a unique operator in the 143-operator database; those shop entries remain unknown.','Labels checked visually against model previews, not extracted through game memory or in-game name panel.']}

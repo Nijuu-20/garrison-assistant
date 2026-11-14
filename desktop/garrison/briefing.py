@@ -6,11 +6,11 @@ from .opening import confirmation_problem,snapshot_key
 class SoloBriefing:
     def __init__(self):self.reset()
     def reset(self):
-        self.opening=None;self.result=None;self.complete=False;self.departed=False
+        self.opening=None;self.result=None;self.complete=False;self.departed=False;self.locked=False
         self.key=None;self.candidate=None;self.count=0;self.gaps=0;self.last_good=0;self.exit_count=0
         self.held=False;self.uncertain=False;self.conflict=False;self.message='';self.ready_field=None
     def seed(self,opening):
-        self.opening=copy.deepcopy(opening);self.complete=True;self.departed=False
+        self.opening=copy.deepcopy(opening);self.complete=True;self.departed=False;self.locked=True
         self.key=None;self.candidate=None;self.count=0;self.gaps=0;self.last_good=0;self.exit_count=0
         self.held=False;self.uncertain=False;self.conflict=False;self.message='';self.ready_field=None
     def restart_evidence(self):
@@ -18,11 +18,10 @@ class SoloBriefing:
     def observe(self,db,result,threshold,repeats=2,now=None):
         now=time.monotonic() if now is None else now;opening=result.get('opening')
         self.result=result;self.ready_field=None
-        if opening and opening.get('mode')=='coop':self.reset();return False
-        if not self.opening and (not opening or opening.get('mode') not in ('solo','fixed')):return False
+        if not self.opening and (not opening or opening.get('mode') not in ('solo','fixed','coop')):return False
         repeats=max(2,repeats)
         field=next((f for f in result.get('fields',[]) if f['key']=='opening_snapshot'),None)
-        good=bool(opening and opening.get('mode') in ('solo','fixed') and not confirmation_problem(db,opening)
+        good=bool(opening and opening.get('mode') in ('solo','fixed','coop') and not confirmation_problem(db,opening)
                   and field and field.get('value') and field['confidence']>=threshold)
         if good:
             try:good=snapshot_key(json.loads(field['value']))==snapshot_key(opening)
@@ -34,9 +33,10 @@ class SoloBriefing:
             # Show the first complete observation immediately for manual review,
             # but replace an existing complete view only after repeated agreement.
             if not self.complete or key==snapshot_key(self.opening) or self.count>=repeats:
-                self.opening=copy.deepcopy(opening);self.complete=True;self.held=False;self.message=''
+                if not self.locked or key!=snapshot_key(self.opening):self.opening=copy.deepcopy(opening)
+                self.complete=True;self.held=False;self.message=''
                 if self.count>=repeats:
-                    self.ready_field=field;self.uncertain=False;self.conflict=False
+                    self.ready_field=field;self.uncertain=False;self.conflict=False;self.locked=True
             else:
                 self.held=True;self.uncertain=True;self.conflict=True;self.message='选组或盟约出现变化，保留上次结果，等待核对'
             return True
@@ -70,6 +70,6 @@ class SoloBriefing:
         hud=bool(hud and fields['phase']['value'] in ('整备','作战','结束'))
         self.exit_count=self.exit_count+1 if hud else 0
         if self.exit_count>=repeats:
-            self.opening=None;self.complete=False;self.departed=True;self.held=False;self.message=''
+            self.opening=None;self.complete=False;self.departed=True;self.held=False;self.message='';self.locked=False
             return False
         return True

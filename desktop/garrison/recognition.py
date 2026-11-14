@@ -43,7 +43,12 @@ def interpret(key, texts, db):
     joined = ' '.join(t[0] for t in texts)
     confidence = min((float(t[1]) for t in texts), default=0.0)
     name = None; value = None
-    if key.startswith(('shop:', 'field:', 'bench:')):
+    if key.startswith('item:'):
+        names={exact_entity(t[0],set(db.by_name)|set(db.equipment)) for t in texts};names.discard(None)
+        if len(names)==1:
+            name=names.pop();value=db.by_name[name]['operator_id'] if name in db.by_name else name
+            confidence=max(t[1] for t in texts if exact_entity(t[0],set(db.by_name)|set(db.equipment))==name)
+    elif key.startswith(('shop:', 'field:', 'bench:')):
         names = [exact_entity(t[0], db.by_name) for t in texts]
         names = set(n for n in names if n)
         if len(names) == 1:
@@ -122,10 +127,21 @@ class Recognizer:
                 observations[i].append((' '.join(a['text'] for a in selected),min(a['confidence'] for a in selected)))
             if region.get('avatar'):continue
             for gray in (False,True):
-                c=cv2.resize(crop,None,fx=2,fy=2,interpolation=cv2.INTER_CUBIC)
+                scale=4 if region.get('roman') else 2
+                c=cv2.resize(crop,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC)
                 if gray:c=cv2.cvtColor(cv2.cvtColor(c,cv2.COLOR_BGR2GRAY),cv2.COLOR_GRAY2BGR)
                 c=cv2.copyMakeBorder(c,6,6,10,10,cv2.BORDER_REPLICATE)
                 crops.append(c);owners.append(i)
+            if region.get('medal'):
+                # A disabled refresh medal has a pale rim that can dominate
+                # OCR. Read its center as additional views; retain the full
+                # views so any confident contradiction still abstains.
+                ch,cw=crop.shape[:2]
+                center=crop[round(ch*.1):round(ch*.9),round(cw*.1):round(cw*.9)]
+                if center.size:
+                    for view in (center,255-center):
+                        c=cv2.resize(view,None,fx=4,fy=4,interpolation=cv2.INTER_CUBIC)
+                        crops.append(cv2.copyMakeBorder(c,6,6,10,10,cv2.BORDER_REPLICATE));owners.append(i)
         if crops:
             out=self.engine.recognize_txt(crops)
             for i,txt,score in zip(owners,out.txts,out.scores):observations[i].append((txt,float(score)))
@@ -135,7 +151,11 @@ class Recognizer:
             crop=self.crop(frame,region)
             if region.get('roman'):
                 shape=hud.roman_bars(crop)
-                if shape is not None and all(f['value'] in (None,shape) for f in [interpret(key,[o],self.db) for o in seen] if f['confidence']>=.65):
+                readings=[interpret(key,[o],self.db) for o in seen]
+                if shape is None:
+                    candidate=hud.roman_image(crop)
+                    if candidate is not None and sum(f['value']==candidate and f['confidence']>=.65 for f in readings)>=2:shape=candidate
+                if shape is not None and all(f['value'] in (None,shape) for f in readings if f['confidence']>=.65):
                     field.update(value=shape,label=str(shape),confidence=.97,method='LEVEL 锚点 + 罗马数字形状核验')
             if region.get('avatar') and crop.size and key.startswith(('field:','bench:','shop:')):
                 oid,score=self.avatar(crop)
@@ -159,6 +179,29 @@ class Recognizer:
             return scores[0][1], scores[0][0]
         return None, scores[0][0] if scores else 0
 
+    def recover_level_label(self, frame, words):
+        if any(a['text'].strip()=='已满级' and a['y']>.55 and a['confidence']>=.8 for a in words):return words
+        boxes=hud.level_label_candidates(frame,words)
+        if not boxes:return words
+        views=[];visual=[]
+        for box in boxes:
+            crop=self.crop(frame,{'rect':box})
+            visual.append(hud.is_level_capsule(crop))
+            enlarged=cv2.resize(crop,None,fx=4,fy=4,interpolation=cv2.INTER_CUBIC)
+            for view in (enlarged,255-enlarged):
+                views.append(cv2.copyMakeBorder(view,8,8,8,8,cv2.BORDER_REPLICATE))
+        output=self.engine.recognize_txt(views);accepted=[]
+        for i,box in enumerate(boxes):
+            readings=list(zip(output.txts[i*2:i*2+2],output.scores[i*2:i*2+2]))
+            textual=len(readings)==2 and all(text.strip().upper()=='LEVEL' and score>=.9 for text,score in readings)
+            if textual or visual[i]:
+                x,y,w,h=box
+                accepted.append({'text':'LEVEL','confidence':float(min(s for _,s in readings)) if textual else .96,
+                                 'rect':box,'x':x+w/2,'y':y+h/2,'method':'调度面板定位 + LEVEL 标签图形核验' if visual[i] else '调度面板定位 + 双视图 LEVEL 核验'})
+        # Even a correctly read LEVEL word may have a narrow text box that
+        # clips I from IV below it. Prefer the verified full capsule geometry.
+        return [a for a in words if not (a['text'].strip().upper()=='LEVEL' and a['y']>.55)]+accepted if len(accepted)==1 else words
+
     def recognize(self, frame, profile=None):
         start = time.perf_counter(); h, w = frame.shape[:2]
         profile = profile or {'regions': []}
@@ -180,45 +223,42 @@ class Recognizer:
             # Local detection preserves tiny HUD text and avoids scanning the
             # name-less battlefield sprites as if they were shop portraits.
             words=self.scan(frame,(0,0,1,.21))+self.scan(frame,(0,.59,1,.41))
-            layout=hud.locate(words,hud.price_badges(frame),self.db,w/h)
+            if not any(a['y']<.2 and interpret('phase',[(a['text'],a['confidence'])],self.db)['value'] is not None for a in words):
+                round_anchor=next((a for a in words if '回合' in a['text'] and a['y']<.2 and a['confidence']>=.9),None)
+                if round_anchor:
+                    x,y,bw,bh=round_anchor['rect']
+                    local=self.scan(frame,hud.rect(x+bw,0,.25,.12))
+                    words += [a for a in local if interpret('phase',[(a['text'],a['confidence'])],self.db)['value'] is not None]
+            words=self.recover_level_label(frame,words)
+            badges=hud.price_badges(frame)
+            layout=hud.locate(words,badges,self.db,w/h)
+            recovered=[]
+            for region in layout['regions']:
+                if not region['key'].startswith('item:'):continue
+                x,y,rw,rh=region['rect']
+                local=self.scan(frame,hud.rect(x,y-.02,rw,rh+.04))
+                names=[a for a in local if a['y']>=y and a['confidence']>=.9 and a['text'].strip() in (set(self.db.by_name)|set(self.db.equipment))]
+                if names:recovered.append(max(names,key=lambda a:a['y']))
+            if recovered:
+                words+=recovered
+                layout=hud.locate(words,badges,self.db,w/h)
             regions=layout['regions']
             hud.refine_refresh(frame,regions)
+            hud.refine_upgrade_cost(frame,regions,words,badges)
+            if any(r['key']=='upgrade_cost' for r in regions):
+                layout['notes']=[n for n in layout['notes'] if n!='升级费用标记未定位。']
         else:
             words=self.scan(frame);regions=ocr_regions
             layout={'valid':True,'notes':[],'slots':[]}
         fields=self.read_regions(frame,regions,words)
         if automatic:
-            offers=[f for f in fields if f['key'].startswith(('shop:','offer:','cost:'))]
-            usable=layout.get('shop_valid') and offers and all(f['value'] is not None and f['confidence']>=.92 for f in offers)
-            payload=[{k:f[k] for k in ('key','value')} for f in offers]
-            fields.append({'key':'shop_snapshot','value':json.dumps(payload,ensure_ascii=False,sort_keys=True) if usable else None,
-                           'label':f'{len(layout["slots"])} 件商品已对应' if usable else '商店待确认',
-                           'confidence':min((f['confidence'] for f in offers),default=0) if usable else 0,
-                           'method':'逐帧定位 · 整组稳定后更新','raw':'','time':time.time()})
+            fields.append(shop_snapshot(fields,regions,layout,self.db))
         if automatic and not layout['valid']:
             fields=[interpret(k,[],self.db) for k in ('phase','round','gold','level','shop_snapshot')]
         battle_result=None
         if profile.get('battle_enabled',True):
-            from .battle import BattleRecognizer,default_zones,observation_fields
-            zones=default_zones(regions)
-            custom={r['key'].removeprefix('battle_'):r['rect'] for r in profile.get('regions',[]) if r['key'] in ('battle_field','battle_bench')}
-            if zones:zones.update(custom)
-            elif len(custom)==2:zones=custom
-            phase=next((f for f in fields if f['key']=='phase'),{})
-            if zones and layout['valid'] and phase.get('value')=='整备' and phase.get('confidence',0)>=.92:
-                try:
-                    if self.battle is None:self.battle=BattleRecognizer()
-                    battle_result={**self.battle.detect(frame,zones),'active':True,'zones':zones}
-                    sprites=observation_fields(battle_result);fields+=sprites
-                    regions=regions+[{'key':f['key'],'rect':f['rect'],'label':f['detection']['name']+(' · 待确认' if f['value'] is None else ''),'pending':f['value'] is None} for f in sprites]
-                    count=sum(d['reliable'] for d in battle_result['detections'])
-                    layout['notes'].append(f'小人比对 {count} 个可用结果；完整阵容、精锐和装备待核对')
-                except (OSError,ValueError,cv2.error) as e:
-                    battle_result={'active':False,'detections':[],'error':str(e)}
-                    layout['notes'].append('小人索引不可用，文字识别继续；请检查安装资源')
-            else:
-                battle_result={'active':False,'detections':[]}
-                layout['notes'].append('小人比对等待整备阶段和展开的商店')
+            battle=self.recognize_battle(frame,{'regions':regions,'fields':fields,'layout_valid':layout['valid']},profile)
+            battle_result=battle['battlefield'];fields+=battle['fields'];regions+=battle['regions'];layout['notes']+=battle['notes']
         candidates = []
         for a in words:
             name = exact_entity(a['text'], self.db.by_name)
@@ -229,6 +269,28 @@ class Recognizer:
                 'battlefield':battle_result,
                 'elapsed_ms': round((time.perf_counter() - start)*1000), 'time': time.time(), 'size': [w, h],
                 'complete': bool(fields) and layout['valid'] and all(f['value'] is not None and f['confidence']>=.92 for f in fields)}
+
+    def recognize_battle(self,frame,result,profile=None):
+        """Separate, bounded task: no OCR engine or shop state is mutated here."""
+        from .battle import BattleRecognizer,default_zones,observation_fields
+        profile=profile or {};zones=default_zones(result['regions'])
+        custom={r['key'].removeprefix('battle_'):r['rect'] for r in profile.get('regions',[]) if r['key'] in ('battle_field','battle_bench')}
+        if zones:zones.update(custom)
+        elif len(custom)==2:zones=custom
+        phase=next((f for f in result['fields'] if f['key']=='phase'),{})
+        output={'fields':[],'regions':[],'notes':[],'battlefield':{'active':False,'detections':[]}}
+        if zones and result['layout_valid'] and phase.get('value')=='整备' and phase.get('confidence',0)>=.92:
+            try:
+                if self.battle is None:self.battle=BattleRecognizer()
+                output['battlefield']={**self.battle.detect(frame,zones),'active':True,'zones':zones}
+                output['fields']=observation_fields(output['battlefield'])
+                output['regions']=[{'key':f['key'],'rect':f['rect'],'label':f['detection']['name']+(' · 待确认' if f['value'] is None else ''),'pending':f['value'] is None} for f in output['fields']]
+                count=sum(d['reliable'] for d in output['battlefield']['detections'])
+                output['notes']=[f'小人比对 {count} 个可用结果；完整阵容、精锐和装备待核对']
+            except (OSError,ValueError,cv2.error) as e:
+                output['battlefield']['error']=str(e);output['notes']=['小人索引不可用，商店识别继续；请检查安装资源']
+        else:output['notes']=['小人比对等待整备阶段和展开的商店']
+        return output
 
 
 def vote(key, observations, db):
@@ -248,10 +310,39 @@ def vote(key, observations, db):
     return result
 
 
+def shop_snapshot(fields,regions,layout,db):
+    """Publish verified name/price pairs; unknown cards never preserve old stock."""
+    for slot in layout['slots']:
+        key=slot['key'];f=next((f for f in fields if f['key']==key),None)
+        if not f or not key.startswith('item:'):continue
+        operator=f['value'] in db.ops
+        slot['key']=f['key']=('shop:' if operator else 'offer:')+str(slot['slot'])
+        slot['kind']='operator' if operator else 'equipment' if f['value'] in db.equipment else 'unknown'
+        for r in regions:
+            if r['key']==key:r['key']=slot['key']
+    indexed={f['key']:f for f in fields};accepted=[];pending=[]
+    for slot in layout['slots']:
+        pair=[indexed.get(slot['key'],{}),indexed.get(f'cost:{slot["slot"]}',{})]
+        if slot['kind'] in ('operator','equipment') and all(f.get('value') is not None and f.get('confidence',0)>=.92 for f in pair):accepted+=pair
+        else:pending.append(slot['slot'])
+    grid=layout.get('grid_valid',layout.get('shop_valid',False))
+    usable=bool(grid and accepted)
+    complete=usable and not pending
+    layout['shop_valid']=bool(complete)
+    layout['notes']=[n for n in layout['notes'] if n!='商品或费用标记不完整，暂不替换商店。']
+    if not grid:layout['notes'].append('商品卡位不完整，等待重新定位。')
+    elif pending:layout['notes'].append(f'{len(pending)} 个商品待确认，已确认的商品独立更新。')
+    return {'key':'shop_snapshot','value':json.dumps([{k:f[k] for k in ('key','value')} for f in accepted],ensure_ascii=False,sort_keys=True) if usable else None,
+            'label':f'{len(accepted)//2}/{len(layout["slots"])} 件商品已确认' if usable else '商店待确认',
+            'confidence':min((f['confidence'] for f in accepted),default=0) if usable else 0,
+            'partial':bool(pending),'pending_slots':pending,'slot_count':len(layout['slots']),
+            'method':'逐帧定位 · 已确认商品稳定后更新','raw':'','time':time.time()}
+
+
 def applicable_fields(result, accepted):
     if result.get('mode')!='auto':return accepted
-    # Auto shop data is applied only through the complete snapshot, even when
-    # some individual fields stabilise earlier than their neighbouring cards.
+    # Name and price always update as one snapshot transaction, with unknown
+    # slots omitted and explicitly marked pending instead of retaining old items.
     return [f for f in accepted if not f['key'].startswith(('shop:','offer:','cost:'))]
 
 
@@ -301,7 +392,8 @@ def apply_fields(state, fields, manual=False):
                 state['shop']=[];state['recognized_offers']={}
                 state['field_meta']={k:v for k,v in state['field_meta'].items() if not k.startswith(('shop:','cost:','offer:'))}
                 fields+=observed
-                state['field_meta']['shop_snapshot']={'time':now,'source':'手动确认' if manual else '自动识别','confidence':snapshot['confidence']}
+                state['field_meta']['shop_snapshot']={'time':now,'source':'手动确认' if manual else '自动识别','confidence':snapshot['confidence'],
+                    'partial':snapshot.get('partial',False),'pending_slots':snapshot.get('pending_slots',[]),'slot_count':snapshot.get('slot_count',len(observed)//2)}
             else:state['field_meta']['shop_snapshot']={'uncertain':True}
     ordered = sorted(fields, key=lambda f: (f['key'].startswith(('cost:', 'elite:', 'gear:')), f['key']))
     for f in ordered:

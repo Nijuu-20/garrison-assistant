@@ -65,6 +65,7 @@ def _validate_window(hwnd, expected_pid=None):
 
 _session=None
 _session_lock=threading.Lock()
+_border_fallback=False
 
 
 def stop_capture():
@@ -100,16 +101,24 @@ def _client_image(hwnd,image,width,height):
 
 
 def capture_window(hwnd, expected_pid=None, keep_alive=False):
-    global _session
+    global _session,_border_fallback
     width,height=_validate_window(hwnd,expected_pid)
     try:
-        with _session_lock:
-            old=None
-            if _session is None or _session.hwnd!=hwnd or _session.closed:
-                old,_session=_session,None
-                if old:old.stop()
-                _session=GraphicsSession(hwnd)
-            session=_session
+        for border in ([None] if _border_fallback else [False,None]):
+            try:
+                with _session_lock:
+                    if _session is None or _session.hwnd!=hwnd or _session.closed:
+                        old,_session=_session,None
+                        if old:old.stop()
+                        _session=GraphicsSession(hwnd,draw_border=border)
+                    session=_session
+                break
+            except (RuntimeError,OSError):
+                stop_capture()
+                if border is not False:raise
+                # Preserve capture on Windows builds that reject borderless
+                # mode. No registry or OS permissions are changed here.
+                _border_fallback=True
         image=session.read()
         width,height=_validate_window(hwnd,expected_pid)
         image=_client_image(hwnd,image,width,height)

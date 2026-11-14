@@ -190,6 +190,7 @@ def apply_observations(state,fields,manual=False):
 
 
 def mark_missing(state,accepted_keys):
+    """Mark observation uncertainty, never remove a last-confirmed member."""
     for u in state['units']:
         key=u.get('recognition_key','')
         if u.get('sprite_managed') and key not in accepted_keys:
@@ -198,7 +199,7 @@ def mark_missing(state,accepted_keys):
 
 
 def known_units(state):
-    return [u for u in state['units'] if not u.get('sprite_missing')]
+    return list(state['units'])
 
 
 def roster_signature(state):
@@ -208,4 +209,5 @@ def roster_signature(state):
 
 def update_roster_status(state):
     prior=state['field_meta'].get('battle_roster',{})
-    state['field_meta']['battle_roster']={**prior,'time':time.time(),'uncertain':prior.get('signature')!=roster_signature(state)}
+    state['field_meta']['battle_roster']={**prior,'time':time.time(),
+        'uncertain':any(u.get('sprite_missing') for u in state['units']) or prior.get('signature')!=roster_signature(state)}

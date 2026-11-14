@@ -29,12 +29,12 @@ try:
     partial=w.recognizer.opening.recognize(hidden);check('occlusion produces incomplete observation',partial and not partial['complete'])
     deliver(partial);deliver(blank())
     check('dropouts preserve displayed bans and all 26 rows',w.overlay.opening_bans.text()==bans and w.opening_table.rowCount()==26 and not w.overlay.opening_box.isHidden())
-    check('held results cannot be manually confirmed',not w.overlay.opening_confirm.isEnabled() and '保留' in w.overlay.opening_status.text())
+    check('locked results cannot be redundantly confirmed',not w.overlay.opening_confirm.isEnabled() and '已锁定' in w.overlay.opening_status.text())
     check('dropouts never write new bans',w.store.state['opening']==old and w.store.state['revision']==revision)
     w.overlay.grab().save(str(OUT/'held-briefing.png'))
-    deliver(blank());check('sustained loss clearly needs review',w.overlay.activity.text()=='开局核对' and not any(not box.isHidden() for box,_,_ in w.overlay.suggestions))
+    deliver(blank());check('sustained visibility loss preserves explicitly locked briefing',w.overlay.activity.text()=='开局攻略' and '已锁定' in w.overlay.opening_status.text() and w.overlay.opening_bans.text()==bans)
     deliver(base);deliver(base)
-    check('recovery does not reconfirm unchanged pool',w.store.state['revision']==revision and '已自动确认' in w.overlay.opening_status.text())
+    check('recovery does not reconfirm unchanged pool',w.store.state['revision']==revision and '已锁定' in w.overlay.opening_status.text())
     # Pixel perturbations are synthetic derivatives, not independent game samples.
     for name,img in [('dimmer',cv2.convertScaleAbs(frame,alpha=.85)),('brighter',cv2.convertScaleAbs(frame,alpha=1.10)),
                      ('shift',cv2.warpAffine(frame,np.float32([[1,0,2],[0,1,-2]]),(frame.shape[1],frame.shape[0]))),
@@ -48,7 +48,7 @@ try:
     for e in opening['core']:e['state']='lit' if e['name'] in opening['groups']['right'] else 'grey'
     recompute(w.db,opening);changed['fields'][0]['value']=json.dumps(opening)
     deliver(changed)
-    check('single changed frame holds old view but suspends advice',w.overlay.opening_bans.text()==bans and w.store.state['field_meta']['opening_snapshot']['uncertain'] and w.overlay.activity.text()=='开局核对')
+    check('single changed frame retains lock and labels pending new choice',w.overlay.opening_bans.text()==bans and not w.store.state['field_meta']['opening_snapshot'].get('uncertain') and '新选组核对中' in w.overlay.opening_status.text())
     deliver(changed)
     check('real repeated change replaces pool once',w.store.state['opening']['selected']=='right' and w.store.state['revision']==revision+1 and w.overlay.opening_bans.text()!=bans)
     revision=w.store.state['revision']

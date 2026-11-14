@@ -1,7 +1,7 @@
 """Player-facing advice shared by the main and floating windows. No diagnostics."""
 from __future__ import annotations
 import copy
-from .core import covenant_status,recommend,fingerprint,validate_actions
+from .core import covenant_status,recommend,fingerprint,validate_actions,roster_review_note,shop_review_note,pending_shop_field
 from .opening import availability,recommendation as opening_recommendation,recompute,core_unrestricted,snapshot_key
 
 
@@ -34,12 +34,14 @@ def target_candidates(db,state,limit=3):
     if constraints['status']=='needs_review':return []
     banned=set(constraints['core_banned'])|set(constraints['additional_banned'])
     allowed=set(constraints['available_operator_ids']) if state.get('opening') else set(db.ops)
-    present={u['op_id'] for u in state['units'] if not u.get('sprite_missing')}
+    present={u['op_id'] for u in state['units']}
     shop={x['op_id'] for x in state['shop']};rows=[]
     from .strategy import route_matches
     guides=route_matches(db,state,1);guide=guides[0] if guides else None
+    if state.get('route_lock') and not guide:return []
     guide_targets=set(guide['targets']) if guide else set()
     for c in covenant_status(db,state):
+        if state.get('route_lock') and c['name'] not in guide_targets:continue
         if (c['type']!='核心盟约' and state['target']!=c['name'] and c['name'] not in guide_targets) or c['name'] in banned:continue
         pool=[o for oid,o in db.ops.items() if oid in allowed and c['name'] in o['covenants']]
         if len(pool)<c['activation_count']:continue
@@ -53,11 +55,13 @@ def target_candidates(db,state,limit=3):
         gap=max(0,(c['next'] or c['activation_count'])-c['effective'])
         progress=f'已激活，当前进度 {c["effective"]} 人' if c['active'] else f'当前 {c["effective"]}/{c["activation_count"]}，还差 {gap} 人'
         if c['active'] and c['next']:progress+=f'；距 {c["next"]} 人档还差 {gap}'
+        if c['needs_review']:progress='按上次确认阵容：'+progress+'（待核对）'
         reason='延续已选目标。' if state['target']==c['name'] else '已有成员和商店更接近成型。' if c['count'] or any(o['operator_id'] in shop for o in candidates) else f'低阶起步池基础费用合计约 {start_cost}。'
         if c['name'] in guide_targets:reason='配合攻略「'+guide['title']+'」。'+reason
         rows.append({'name':c['name'],'reason':reason,'progress':progress,'effect':c['effect'],
                      'candidates':[{'op_id':o['operator_id'],'name':o['name'],'in_shop':o['operator_id'] in shop} for o in candidates],
-                     'conditional':constraints['status']!='confirmed','score':score})
+                     'conditional':constraints['status']!='confirmed',
+                     'needs_review':c['needs_review'],'pending_uids':c['pending_uids'],'score':score})
     return sorted(rows,key=lambda r:(-r['score'],r['name']))[:limit]
 
 
@@ -78,12 +82,17 @@ def action_title(db,state,action):
 
 def analysis_text(db,state,result,compact=False):
     if result.get('fingerprint')!=fingerprint(state):return '局面已变化，请重新分析；上一份操作建议已收起。'
+    if result.get('route_conflict'):
+        from .strategy import local_plan
+        return local_plan(db,state,compact)['analysis']
     if state.get('opening') and state['field_meta'].get('opening_snapshot',{}).get('uncertain'):
         return '先重新确认本局禁选，再分析购买与目标盟约。'
     actions=validate_actions(db,state,result.get('actions',[]));valid=[a for a in actions if a.get('valid')];invalid=[a for a in actions if not a.get('valid')]
     lines=[text(result.get('goal'),180) if not invalid else '优先执行已确认步骤；其余操作先核对条件。']
     assessment=text(result.get('assessment'),350)
     if assessment:lines+=['',assessment]
+    if roster_review_note(state):lines+=['',roster_review_note(state)]
+    if shop_review_note(state):lines+=['',shop_review_note(state)]
     for i,a in enumerate(valid[:3 if compact else 5]):
         lines+=['',f'{i+1}. '+action_title(db,state,a)]
         reason=text(a.get('reason'),180 if compact else 500)
@@ -122,8 +131,9 @@ def overlay_advice(db,state,result=None,opening=None,ai_enabled=False):
         if opening.get('context')!='in_match':preview['units']=[];preview['shop']=[]
         rec=opening_recommendation(db,opening,state['target']);lines=[]
         if opening['mode']=='solo' and rec:
-            side=rec['side'];names={'left':'左组','right':'右组'}
-            lines=['起步推荐：'+('优先选择'+names[side] if side else '两组接近，优先保留目标盟约')]
+            confirmed=snapshot_key(opening)==snapshot_key(state.get('opening')) and not state['field_meta'].get('opening_snapshot',{}).get('uncertain')
+            side=opening.get('selected') if confirmed else rec['side'];names={'left':'左组','right':'右组'}
+            lines=['已锁定'+names[side]+'，按本组可用盟约规划。'] if confirmed and side else ['起步推荐：'+('优先选择'+names[side] if side else '两组接近，优先保留目标盟约')]
             chosen=next((r for r in rec['groups'] if r['side']==side),rec['groups'][0])
             lines.extend(chosen['reasons'][:1])
             lines.extend(r for r in chosen['reasons'] if r.startswith('可参考攻略'))
@@ -132,7 +142,7 @@ def overlay_advice(db,state,result=None,opening=None,ai_enabled=False):
                 preview['opening']=copy.deepcopy(opening);preview['opening']['selected']=side
                 for e in preview['opening']['core']:e['state']='lit' if e['name'] in opening['groups'][side] else 'grey'
                 recompute(db,preview['opening'])
-                lines.append('下方目标按'+names[side]+'规划；实际选组后重新确认。')
+                if not confirmed:lines.append('下方目标按'+names[side]+'规划；实际选组后重新确认。')
             if rec['provisional']:lines.append('先补齐盟约信息，再确认选组。')
         elif opening.get('context')=='in_match':
             lines=['核对本局禁选，确认后按当前阵容、装备与资金重新规划。','本次只更新禁选，不重置当前对局。']
@@ -145,9 +155,13 @@ def overlay_advice(db,state,result=None,opening=None,ai_enabled=False):
         return {'source':'局内禁选核对' if opening.get('context')=='in_match' else '开局攻略','analysis':'\n'.join(lines),'targets':target_candidates(db,preview,2),
                 'source_ids':guides[0]['source_ids'] if guides else [],'recommendation_list':[]}
     targets=target_candidates(db,state,2)
-    fresh=bool(ai_enabled and result and result.get('fingerprint')==fingerprint(state)
-               and not any(v.get('uncertain') for k,v in state['field_meta'].items() if k in ('opening_snapshot','gold','phase','shop_snapshot') or k.startswith(('shop:','cost:'))))
+    fresh=bool(ai_enabled and result and not result.get('route_conflict') and result.get('fingerprint')==fingerprint(state)
+               and not any(v.get('uncertain') for k,v in state['field_meta'].items() if (k in ('opening_snapshot','gold','phase','shop_snapshot') or k.startswith(('shop:','cost:'))) and not pending_shop_field(state,k)))
     if fresh:
+        from .strategy import local_plan,lineup_planning_ready
+        tracking_choices=result.get('recommendation_list',[])
+        if not tracking_choices and lineup_planning_ready(state):
+            tracking_choices=local_plan(db,state,True,result.get('guide_profile_id'))['recommendation_list']
         target=result.get('target_recommendation') or {}
         if target.get('name'):
             choices=target_candidates(db,state,10)
@@ -155,8 +169,8 @@ def overlay_advice(db,state,result=None,opening=None,ai_enabled=False):
             if match:targets=[{**match,'reason':text(target.get('reason')) or match['reason']},*[c for c in targets if c['name']!=match['name']]][:2]
         return {'source':'AI 分析','analysis':analysis_text(db,state,result,True),'targets':targets,
                 'source_ids':result.get('guide_source_ids',[]),'source_label':result.get('guide_source_label','攻略来源'),
-                'recommendation_list':result.get('recommendation_list',[])}
+                'recommendation_list':tracking_choices}
     from .strategy import local_plan
     plan=local_plan(db,state,True)
-    if ai_enabled and result:plan['analysis']='局面已变化，先参考当前本地攻略。\n'+plan['analysis']
+    if ai_enabled and result:plan['analysis']=('AI 未沿用锁定路线，继续按本地攻略推进。\n' if result.get('route_conflict') else '局面已变化，先参考当前本地攻略。\n')+plan['analysis']
     return {**plan,'targets':targets}

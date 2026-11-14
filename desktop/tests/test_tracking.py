@@ -109,5 +109,37 @@ def test_fast_pixels_reject_refresh_and_accept_animated_portrait(db):
     assert not same_shop_pixels(None,frame,rows)
     assert not same_shop_pixels(frame[:200],frame,rows)
 
+
+def test_one_ocr_miss_keeps_only_visually_unchanged_stable_item(db):
+    rng=np.random.default_rng(21);frame=rng.integers(35,215,(400,800,3),dtype=np.uint8)
+    gate=ShopWatch();r=observation(db);gate.accept(db,r,frame=frame,now=1);assert gate.accept(db,r,frame=frame,now=2)
+    missing=copy.deepcopy(r);missing['fields'][0]['value']=None
+    assert gate.accept(db,missing,frame=frame,now=3)
+    assert gate.accept(db,r,frame=frame,now=4)  # No second warm-up after a verified miss.
+    assert not gate.accept(db,missing,frame=frame,now=11)
+    gate.accept(db,r,frame=frame,now=12);gate.accept(db,r,frame=frame,now=13)
+    blank=frame.copy();blank[int(.93*400):]=0
+    assert not gate.accept(db,missing,frame=blank,now=14)
+
+
+def test_hover_brightness_and_minor_position_jitter_do_not_drop_track(db):
+    rng=np.random.default_rng(22);frame=rng.integers(35,180,(400,800,3),dtype=np.uint8)
+    gate=ShopWatch();r=observation(db);gate.accept(db,r,frame=frame,now=1);items=gate.accept(db,r,frame=frame,now=2)
+    bright=(frame+25).astype(np.uint8)
+    assert same_shop_pixels(bright,frame,items)
+    jitter=copy.deepcopy(r);jitter['shop_slots'][0]['rect'][0]+=.002
+    assert gate.accept(db,jitter,frame=bright,now=3)[0]['rect']==r['shop_slots'][0]['rect']
+
+
+def test_changing_one_item_does_not_reset_another_confirmed_item(db):
+    rng=np.random.default_rng(23);frame=rng.integers(35,215,(400,800,3),dtype=np.uint8)
+    gate=ShopWatch();r=observation(db);other=observation(db,'OP002',slot=1,rect=[.5,.75,.12,.22])
+    for k in ('fields','regions','shop_slots'):r[k]+=other[k]
+    gate.accept(db,r,frame=frame,now=1);items=gate.accept(db,r,frame=frame,now=2)
+    changed=frame.copy();changed[int(.93*400):,int(.31*800):int(.40*800)]=0
+    visible=gate.visible_matches(changed,frame,items,now=3)
+    assert len(visible)==1 and visible[0]['slot']==1
+    assert len(gate.stable)==1 and (1,'operator:OP002') in gate.previous
+
 @pytest.mark.parametrize('rect',[[0,0,1,1],[0,0,0,1],[-.1,0,.1,1],[0,0,float('nan'),1],[.9,0,.2,1],None])
 def test_rectangle_bounds(rect):assert valid_rect(rect)==(rect==[0,0,1,1])

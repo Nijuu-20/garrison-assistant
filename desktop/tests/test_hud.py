@@ -99,3 +99,33 @@ def test_roman_shape_rejects_frame_and_v():
     assert hud.roman_bars(crop)==1
     crop[:]=180;crop[0:50,26:35]=20
     assert hud.roman_bars(crop) is None
+
+
+def test_faded_roman_ii_keeps_two_strokes_but_v_is_not_two_bars():
+    import cv2
+    crop=np.full((52,64,3),200,np.uint8)
+    crop[4:28,20:30]=20;crop[4:28,32:44]=20
+    crop[28:44,20:30]=170;crop[28:44,32:44]=170
+    assert hud.roman_bars(crop)==2
+    crop[:]=200
+    cv2.line(crop,(18,5),(32,43),(20,20,20),5)
+    cv2.line(crop,(46,5),(32,43),(20,20,20),5)
+    assert hud.roman_bars(crop) is None
+
+
+def test_level_capsule_requires_interior_glyphs():
+    import cv2
+    template=hud.level_capsule_template()
+    assert template is not None
+    assert hud.is_level_capsule(cv2.cvtColor(template,cv2.COLOR_GRAY2BGR))
+    blank=template.copy();blank[3:27,9:87]=15
+    assert not hud.is_level_capsule(cv2.cvtColor(blank,cv2.COLOR_GRAY2BGR))
+    assert not hud.is_level_capsule(np.full((25,80,3),30,np.uint8))
+
+
+def test_top_difficulty_or_unanchored_label_cannot_recover_level():
+    import cv2
+    frame=np.full((720,1280,3),180,np.uint8)
+    glyph=cv2.cvtColor(hud.level_capsule_template(),cv2.COLOR_GRAY2BGR)
+    frame[580:612,400:496]=glyph
+    assert not hud.level_label_candidates(frame,[word('规程等级16',.1,.03)])

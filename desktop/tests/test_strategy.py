@@ -1,7 +1,7 @@
 import copy,json
 from pathlib import Path
 import pytest
-from garrison.core import Database,new_state,unit,recommend
+from garrison.core import Database,new_state,unit,recommend,fingerprint,validate_state
 from garrison.opening import recompute
 from garrison.strategy import (library,skill_text,verify_bundle,route_matches,local_plan,ai_material,
                                resolve_ai_sources,sources_html,safe_excerpt,member_roles)
@@ -26,6 +26,41 @@ def test_bundle_uses_existing_authored_material_verbatim():
     for path in ('SKILL.md','references/routes/R02.md','references/mechanics.md'):
         assert skill_text(path)==(base/path).read_text('utf8')
 
+
+def test_route_lock_survives_changing_board_shop_target_and_level(db):
+    s=state(db);assert route_matches(db,s,1)[0]['id']=='R02'
+    before=fingerprint(s);s['route_lock']='R02';assert fingerprint(s)!=before
+    s.update(target='乌萨斯',level=6,gold=20,units=[unit(db.by_name['塔露拉']['operator_id'])],shop=[])
+    assert [r['id'] for r in route_matches(db,s,20)]==['R02']
+    assert '已锁定路线' in local_plan(db,s)['analysis'] and validate_state(s,db)['route_lock']=='R02'
+    assert new_state()['route_lock']==''
+    s['route_lock']='';assert route_matches(db,s,1)[0]['id']!='R02'
+
+
+def test_locked_route_cannot_bypass_bans_or_deleted_guide(db):
+    s=state(db);s['route_lock']='R02';s['opening']=opening(db,['卡西米尔'])
+    assert not route_matches(db,s) and not local_plan(db,s)['recommendation_list']
+    assert '不会自动换线' in local_plan(db,s)['analysis'] and s['route_lock']=='R02'
+    s['opening']=opening(db);db.disabled_guide_routes=['R02']
+    assert not route_matches(db,s) and not ai_material(db,s)['route_lock_satisfied']
+
+
+def test_locked_ai_context_and_response_cannot_silently_switch_routes(db):
+    s=state(db);s['route_lock']='R02';context=make_context(db,s)
+    assert context['strategy_guide']['locked_route']['id']=='R02'
+    assert {m['id'] for m in context['strategy_guide']['matches']}=={'R02'}
+    raw={'goal':'按路线推进','actions':[],'guide_profile_id':'R04'}
+    bad=normalize_result(raw,db,s);assert bad['route_conflict'] and not bad['recommendation_list']
+    raw['guide_profile_id']='R02';assert not normalize_result(raw,db,s)['route_conflict']
+    del raw['guide_profile_id'];assert normalize_result(raw,db,s)['route_conflict']
+
+
+def test_route_lock_keeps_specific_author_variant(db):
+    s=state(db,'炎');s['strategies']=['御守之力'];s['route_lock']='R01-suzuran'
+    assert route_matches(db,s)[0]['id']=='R01-suzuran'
+    s['strategies']=['广交豪杰']
+    assert not route_matches(db,s)  # Do not silently turn the lock into the other R01 author.
+
 def test_strategy_gates_and_starter_remains_after_switch(db):
     s=state(db,'灵巧');s['opening']=None
     assert not any(m['route_id'] in ('R03','R05','R06','R07','R09','R10') for m in route_matches(db,s,20))
@@ -33,7 +68,9 @@ def test_strategy_gates_and_starter_remains_after_switch(db):
     s['strategies']=[];s['units']=[unit(db.by_name['“暴躁铁皮”']['operator_id'])]
     assert any(m['route_id']=='R03' for m in route_matches(db,s,20))
     s['units'][0]['sprite_missing']=True
-    assert not any(m['route_id']=='R03' for m in route_matches(db,s,20))
+    match=next(m for m in route_matches(db,s,20) if m['route_id']=='R03')
+    assert match['needs_review'] and match['present_ids']==[s['units'][0]['op_id']]
+    assert '待核对' in local_plan(db,s)['analysis']
 
 def test_yan_variants_not_combined(db):
     s=state(db,'炎');s['strategies']=['广交豪杰']
@@ -54,7 +91,8 @@ def test_local_recommendation_has_authored_items_and_actual_cost(db):
     s=state(db);s['units']=[unit(db.by_name['砾']['operator_id'])]
     s['shop']=[{'op_id':db.by_name['瑕光']['operator_id'],'cost':3,'slot':4}]
     plan=local_plan(db,s)
-    assert plan['source']=='本地攻略' and plan['source_ids']==['S05']
+    assert plan['source']=='本地攻略' and plan['routes'][0]['source_ids']==['S05']
+    assert plan['source_ids'][0]=='S05'  # Round-three planning also cites a fallback route.
     assert '购买 瑕光，花费 3，余 5' in plan['analysis']
     assert any(i['kind']=='equipment' and i['name']=='精准狙击镜' for i in plan['recommendation_list'])
     mlynar=next(i for i in plan['recommendation_list'] if i['name']=='玛恩纳')
