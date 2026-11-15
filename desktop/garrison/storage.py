@@ -60,6 +60,7 @@ DEFAULT_SETTINGS = {
     'capture_hotkey': 'Ctrl+Shift+F9', 'coach_hotkey': 'Ctrl+Shift+F8',
     'overlay_opacity': 0.88, 'overlay_scale': 100, 'floating_size': 56, 'reduce_motion': False,
     'capture_interval': 1.5, 'stable_frames': 2, 'recognition_threshold': 0.92,
+    'opening_stable_frames': 2, 'shop_stable_frames': 2,
     'auto_apply': False, 'opening_auto_confirm': True, 'battle_enabled': True, 'capture_profiles': [], 'capture_profile': '',
     'ai_profiles': [], 'ai_profile': '', 'ai_enabled': False, 'ai_auto': True,
     'ai_on_change': False, 'ai_timeout': 20, 'ai_min_interval': 12,
@@ -71,7 +72,14 @@ DEFAULT_SETTINGS = {
 class Storage:
     def __init__(self):
         self.root = user_dir()
-        self.settings = {**DEFAULT_SETTINGS, **read_json(self.root / 'settings.json', {})}
+        saved = read_json(self.root / 'settings.json', {})
+        self.settings = {**DEFAULT_SETTINGS, **saved}
+        # Existing profiles inherit their former shared timing until edited separately.
+        for key in ('opening_stable_frames', 'shop_stable_frames'):
+            value = saved.get(key, saved.get('stable_frames', DEFAULT_SETTINGS[key]))
+            try: value = int(value)
+            except (ValueError, TypeError, OverflowError): value = DEFAULT_SETTINGS[key]
+            self.settings[key] = max(1, min(6, value))
         # Online analysis and continuous capture require a deliberate start each launch.
         self.settings['ai_enabled'] = False
         self.teams = read_json(self.root / 'teams.json', [])

@@ -95,7 +95,7 @@ class ShopWatch:
             same=old and max(abs(a-b) for a,b in zip(old['rect'],item['rect']))<.006
             count=old['count']+1 if same else 1
             current[key]={'rect':item['rect'],'count':count}
-            if count>=max(2,frames):
+            if count>=max(1,frames):
                 prior=next((m for m in self.stable if self.key(m)==key),None)
                 if same and prior:item={**item,'rect':prior['rect']}
                 stable.append(item);self.last_seen[key]=now

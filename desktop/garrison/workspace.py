@@ -81,7 +81,7 @@ class WorkspaceMixin:
         self.settings_tabs.insertTab(1,parts['recognition'],'画面识别')
         self.settings_tabs.insertTab(2,scroll(column(parts['api'],self.ai_runtime_page,None)),'AI / API')
         self.settings_tab_ids={'appearance':0,'recognition':1,'api':2,'data':3}
-        self.recognition_controls.layout().addWidget(self.recognition_runtime_page)
+        self.recognition_controls.layout().insertWidget(0,self.recognition_runtime_page)
         return [('home','01   首页',parts['home']),('catalog','02   资料图鉴',parts['catalog']),
                 ('guides','03   阵容攻略',parts['guides']),('tools','04   对局工具',parts['tools']),('settings','05   设置',parts['settings'])]
 
@@ -166,10 +166,20 @@ class WorkspaceMixin:
         self.interval_spin=QDoubleSpinBox();self.interval_spin.setRange(.5,10);self.interval_spin.setSingleStep(.5);self.interval_spin.setValue(self.settings['capture_interval'])
         self.threshold_spin=QDoubleSpinBox();self.threshold_spin.setRange(.80,.99);self.threshold_spin.setDecimals(2);self.threshold_spin.setSingleStep(.01);self.threshold_spin.setValue(self.settings['recognition_threshold'])
         self.stability_spin=spin(self.settings['stable_frames'],2,6)
+        self.opening_stability_spin=spin(self.settings['opening_stable_frames'],1,6)
+        self.shop_stability_spin=spin(self.settings['shop_stable_frames'],1,6)
+        for widget in (self.opening_stability_spin,self.shop_stability_spin):
+            widget.setSuffix(' 帧');widget.setSpecialValueText('1 帧（关闭）')
+            widget.setToolTip('1 帧：关闭连续帧等待；仍检查单帧可信度和信息完整性。')
         self.timeout_spin=spin(self.settings['ai_timeout'],5,120);self.rate_spin=spin(self.settings['ai_min_interval'],5,120);self.limit_spin=spin(self.settings['ai_limit'],1,999)
         vision=QWidget();vf=QFormLayout(vision)
-        for title,w in [('识别间隔（秒）',self.interval_spin),('最低识别分数',self.threshold_spin),('连续一致帧数',self.stability_spin)]:vf.addRow(title,w)
-        self.recognition_runtime_page=card('稳定性与频率',vision,button('保存识别参数',self.save_runtime))
+        vf.setRowWrapPolicy(QFormLayout.WrapAllRows)
+        for title,w in [('识别间隔（秒）',self.interval_spin),('最低识别分数',self.threshold_spin),
+                        ('禁选连续一致帧数',self.opening_stability_spin),('商店连续一致帧数',self.shop_stability_spin),
+                        ('其他数值与阵容连续帧数',self.stability_spin)]:vf.addRow(title,w)
+        self.recognition_runtime_page=card('稳定性与频率',vision,
+            label('禁选和商店可分别设为 1 帧，关闭连续帧等待。商店追踪标记沿用商店帧数；单帧可信度和完整性检查仍生效。','muted',True),
+            button('保存识别参数',self.save_runtime))
         ai=QWidget();af=QFormLayout(ai)
         for title,w in [('请求超时（秒）',self.timeout_spin),('最小请求间隔（秒）',self.rate_spin),('每局请求上限',self.limit_spin)]:af.addRow(title,w)
         self.ai_runtime_page=card('自动分析与请求频率',self.ai_auto,self.ai_change,ai,button('保存请求参数',self.save_runtime))

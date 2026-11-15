@@ -168,7 +168,9 @@ class Overlay(QWidget):
         capture=button('重新识别',main.capture_once);capture.setProperty('tone','blue')
         self.opening_review_button=button('核对本局禁选',main.begin_opening_review)
         self.opening_review_cancel=button('返回局面',main.end_opening_review)
-        l.addWidget(column(row(self.opening_review_button,self.opening_review_cancel),row(capture,button('AI 分析',main.analyze,True)),margin=9))
+        self.new_session_button=button('新对局（一键清空）',main.new_session)
+        self.new_session_button.setToolTip('归档上一局，清空本局阵容、禁选、追踪和建议；保留 API 与识别配置。')
+        l.addWidget(column(row(self.opening_review_button,self.opening_review_cancel),row(capture,button('AI 分析',main.analyze,True)),self.new_session_button,margin=9))
         self.resize(410,720)
     def update_content(self):
         m=self.main;s=m.store.state
@@ -232,7 +234,7 @@ class MainWindow(WorkspaceMixin,QMainWindow):
         try: saved=validate_state(saved,self.db) if saved else None
         except ValueError: saved=None
         self.store=StateStore(saved); self.pool=QThreadPool(self); self.pool.setMaxThreadCount(3); self.jobs=set()
-        self.recognizer=Recognizer(self.db); self.gate=StabilityGate(self.settings['stable_frames']); self.coach=Coach()
+        self.recognizer=Recognizer(self.db); self.gate=StabilityGate.from_settings(self.settings); self.coach=Coach()
         self.battle_gate=StabilityGate(self.settings['stable_frames']);self.battle_busy=False
         self.solo_briefing=SoloBriefing();self.review_opening=False
         self.live=False; self.capture_busy=False; self.ai_busy=False; self.closing=False; self.frame=None; self.last_recognition=None
@@ -922,7 +924,7 @@ class MainWindow(WorkspaceMixin,QMainWindow):
         split=QSplitter();split.addWidget(preview);split.addWidget(regions_scroll);split.setSizes([700,300])
         tabs=QTabWidget();tabs.addTab(split,'画面与区域');tabs.addTab(column(self.recognition_table,
             row(button('修正所选结果',self.correct_recognition),button('确认可用结果',self.apply_recognition,True),button('合并已识别装备到库存',self.merge_recognized_inventory)),
-            label('置信度是识别模型分数，并非实测准确率。自动更新须达到阈值且连续多帧一致。','muted',True)),'识别结果与校正')
+            label('置信度是识别模型分数，并非实测准确率。自动更新须达到阈值，并满足对应的连续帧数设置。','muted',True)),'识别结果与校正')
         self.recognition_tabs=tabs
         self.opening_table=table(['盟约图标','状态','识别状态']);self.opening_table.setIconSize(QSize(36,36));self.opening_table.setMinimumWidth(330)
         self.opening_table.cellDoubleClicked.connect(lambda *_:self.correct_opening_icon())
@@ -1230,7 +1232,7 @@ class MainWindow(WorkspaceMixin,QMainWindow):
             self.clear_shop_tracking()
             self.recognition_status=('等待游戏画面恢复 · 自动重试 / ' if self.live else '截取未完成 / ')+message;self.recognition_label.setText(self.recognition_status);self.gate.reset();self.notify(message)
             if self.live and self.solo_briefing.opening:
-                gap={'fields':[]};self.solo_briefing.observe(self.db,gap,self.settings['recognition_threshold'],self.settings['stable_frames']);self.last_recognition=gap
+                gap={'fields':[]};self.solo_briefing.observe(self.db,gap,self.settings['recognition_threshold'],self.settings['opening_stable_frames']);self.last_recognition=gap
             mark_uncertain(self.store.state,[{'key':k,'value':None,'confidence':0} for k in ('gold','round','phase','shop_snapshot')],self.settings['recognition_threshold'])
             if self.settings['battle_enabled']:mark_missing(self.store.state,set());update_roster_status(self.store.state)
             self.refresh_home();self.overlay.update_content()
@@ -1274,7 +1276,7 @@ class MainWindow(WorkspaceMixin,QMainWindow):
                      lambda msg:(self.recognition_label.setText(msg),self.notify(msg)),lambda:setattr(self,'capture_busy',False))
     def receive_recognition(self,result,before):
         # Tracking follows this capture, independently of edits to tactical state.
-        self.shop_watch.accept(self.db,result,self.settings['recognition_threshold'],self.settings['stable_frames'],self.frame)
+        self.shop_watch.accept(self.db,result,self.settings['recognition_threshold'],self.settings['shop_stable_frames'],self.frame)
         self.watch_source=result.get('capture_source');self.tracking_frame=self.frame.copy() if self.frame is not None else None
         self.refresh_shop_matches()
         if before!=fingerprint(self.store.state):return
@@ -1292,7 +1294,7 @@ class MainWindow(WorkspaceMixin,QMainWindow):
         if self.live:
             prior=self.store.state.get('opening')
             if not self.review_opening and not self.solo_briefing.opening and not self.solo_briefing.departed and prior and prior['mode'] in ('solo','fixed','coop') and self.store.state['phase']=='开局':self.solo_briefing.seed(prior)
-            if self.solo_briefing.observe(self.db,result,threshold,self.settings['stable_frames']):
+            if self.solo_briefing.observe(self.db,result,threshold,self.settings['opening_stable_frames']):
                 if entering_opening:self.open_home_tab('bans',False)
                 accepted=[self.solo_briefing.ready_field] if self.solo_briefing.ready_field else []
                 self.receive_opening({**result,'opening':self.solo_briefing.opening},accepted,before);return
@@ -1543,9 +1545,16 @@ class MainWindow(WorkspaceMixin,QMainWindow):
         self.floating.setFixedSize(self.settings['floating_size'],self.settings['floating_size'])
         self.storage.save_settings();self.overlay.update_content();self.notify('窗口外观设置已保存')
     def save_runtime(self):
-        self.settings.update(capture_interval=self.interval_spin.value(),recognition_threshold=self.threshold_spin.value(),stable_frames=self.stability_spin.value(),
-                             ai_timeout=self.timeout_spin.value(),ai_min_interval=self.rate_spin.value(),ai_limit=self.limit_spin.value())
-        self.gate=StabilityGate(self.settings['stable_frames']);self.battle_gate=StabilityGate(self.settings['stable_frames']);self.storage.save_settings();self.notify('运行参数已保存')
+        vision=dict(capture_interval=self.interval_spin.value(),recognition_threshold=self.threshold_spin.value(),stable_frames=self.stability_spin.value(),
+                    opening_stable_frames=self.opening_stability_spin.value(),shop_stable_frames=self.shop_stability_spin.value())
+        changed=any(self.settings.get(key)!=value for key,value in vision.items())
+        self.settings.update(vision,ai_timeout=self.timeout_spin.value(),ai_min_interval=self.rate_spin.value(),ai_limit=self.limit_spin.value())
+        if changed:
+            # Do not let an in-flight capture or old frame counts satisfy newly saved timing.
+            self.capture_generation+=1
+            self.gate=StabilityGate.from_settings(self.settings);self.battle_gate=StabilityGate(self.settings['stable_frames'])
+            self.solo_briefing.restart_evidence();self.clear_shop_tracking()
+        self.storage.save_settings();self.notify('运行参数已保存')
     def import_database(self):
         path,_=QFileDialog.getOpenFileName(self,'导入规程数据库','','JSON (*.json)')
         if not path:return
@@ -1606,7 +1615,8 @@ class MainWindow(WorkspaceMixin,QMainWindow):
         else:self.notify('阵容分享图已保存')
     def new_session(self):
         self.storage.archive_session(self.store.state);self.cancel_ai();self.store=StateStore(new_state());self.coach.reset(self.store.state['session_id'])
-        self.ai_result=None;self.auto_keys.clear();self.budget_plan=[];self.reset_capture();self.team_name.setText('未命名阵容');self.refresh_all();self.notify('新对局已开始；上一局已保存在本机历史文件')
+        self.tracked=[];self.storage.save_tracking(self.tracked)
+        self.ai_result=None;self.auto_keys.clear();self.budget_plan=[];self.reset_capture();self.team_name.setText('未命名阵容');self.refresh_all();self.notify('新对局已开始，本局追踪已清空；上一局已保存在本机历史文件')
     def load_example(self):
         self.new_session();ops=sorted([o for o in self.db.ops.values() if '谢拉格' in o['covenants']],key=lambda o:o['tier'])
         self.store.state.update(name='示例 · 谢拉格入门',target='谢拉格',units=[unit(o['operator_id']) for o in ops[:3]],gold=10,round=1,level=2,phase='整备')

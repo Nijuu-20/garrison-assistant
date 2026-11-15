@@ -14,12 +14,12 @@ class SoloBriefing:
         self.key=None;self.candidate=None;self.count=0;self.gaps=0;self.last_good=0;self.exit_count=0
         self.held=False;self.uncertain=False;self.conflict=False;self.message='';self.ready_field=None
     def restart_evidence(self):
-        self.key=None;self.candidate=None;self.count=0;self.gaps=0;self.last_good=0;self.ready_field=None
+        self.key=None;self.candidate=None;self.count=0;self.gaps=0;self.last_good=0;self.exit_count=0;self.ready_field=None
     def observe(self,db,result,threshold,repeats=2,now=None):
         now=time.monotonic() if now is None else now;opening=result.get('opening')
         self.result=result;self.ready_field=None
         if not self.opening and (not opening or opening.get('mode') not in ('solo','fixed','coop')):return False
-        repeats=max(2,repeats)
+        repeats=max(1,repeats)
         field=next((f for f in result.get('fields',[]) if f['key']=='opening_snapshot'),None)
         good=bool(opening and opening.get('mode') in ('solo','fixed','coop') and not confirmation_problem(db,opening)
                   and field and field.get('value') and field['confidence']>=threshold)

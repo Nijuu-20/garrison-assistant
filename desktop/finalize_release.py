@@ -37,6 +37,8 @@ early_lineup=json.loads((HERE/'build/early-lineup/report.json').read_text('utf8'
 assert early_lineup['version']==__version__ and early_lineup['passed']
 workspace=json.loads((HERE/'build/workspace-ui/report.json').read_text('utf8'))
 assert workspace['version']==__version__ and workspace['passed']
+stability_settings=json.loads((HERE/'build/stability-settings/report.json').read_text('utf8'))
+assert stability_settings['version']==__version__ and stability_settings['passed']
 strategy=json.loads((HERE/'build/strategy-ui/report.json').read_text('utf8'))
 assert strategy['version']==__version__ and strategy['passed']
 catalog_details=json.loads((HERE/'build/catalog-details/report.json').read_text('utf8'))
@@ -77,6 +79,7 @@ report={
  'partial_shop_ui':shop_ui,
  'round_three_lineup_and_tracking':early_lineup,
  'home_workflow_and_manual_tracking_filters':workspace,
+ 'independent_recognition_stability_settings':stability_settings,
  'capture_border':{'request':False,'fallback':'OS default when constructor rejects borderless mode','live_verified':False,'system_permission_modified':False},
  'authored_strategy_and_delete_controls':strategy,
  'paged_catalog_and_state_switch':catalog_details,

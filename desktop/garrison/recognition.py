@@ -347,7 +347,20 @@ def applicable_fields(result, accepted):
 
 
 class StabilityGate:
-    def __init__(self, repeats=2): self.repeats = repeats; self.previous = {}; self.counts = {}
+    def __init__(self, repeats=2, *, opening_repeats=None, shop_repeats=None):
+        self.repeats = max(1, repeats)
+        self.opening_repeats = self.repeats if opening_repeats is None else max(1, opening_repeats)
+        self.shop_repeats = self.repeats if shop_repeats is None else max(1, shop_repeats)
+        self.previous = {}; self.counts = {}
+    @classmethod
+    def from_settings(cls, settings):
+        repeats = settings['stable_frames']
+        return cls(repeats, opening_repeats=settings.get('opening_stable_frames', repeats),
+                   shop_repeats=settings.get('shop_stable_frames', repeats))
+    def required_frames(self, key):
+        if key == 'opening_snapshot': return self.opening_repeats
+        if key == 'shop_snapshot' or key.startswith(('shop:', 'offer:', 'cost:')): return self.shop_repeats
+        return self.repeats
     def reset(self): self.previous.clear(); self.counts.clear()
     def accept(self, fields, threshold):
         result = []
@@ -364,7 +377,7 @@ class StabilityGate:
                 self.previous.pop(key, None); self.counts[key] = 0; continue
             self.counts[key] = self.counts.get(key, 0) + 1 if self.previous.get(key) == value else 1
             self.previous[key] = value
-            if self.counts[key] >= self.repeats: result.append(f)
+            if self.counts[key] >= self.required_frames(key): result.append(f)
         return result
 
 

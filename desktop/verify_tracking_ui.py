@@ -7,7 +7,7 @@ import cv2,numpy as np
 from PIL import Image
 from PySide6.QtCore import Qt,QRectF
 from PySide6.QtGui import QFontDatabase,QImage,QPainter
-from PySide6.QtWidgets import QApplication,QScrollArea
+from PySide6.QtWidgets import QApplication,QScrollArea,QPushButton
 import garrison.ui as ui
 from garrison.core import new_state,fingerprint
 from garrison.coach import normalize_result
@@ -99,7 +99,41 @@ try:
     check('refresh pixels remove old boxes before next OCR',not w.shop_highlight.isVisible() and not w.canvas.tracking_regions)
     latest[0]=game;w.live=False;w.set_frame(game);w.receive_recognition(copy.deepcopy(result),fingerprint(w.store.state));w.receive_recognition(copy.deepcopy(result),fingerprint(w.store.state))
     w.live=True;w.watch_source=source;geometry[2]-=100;w.update_shop_highlight();check('resize clears stale rectangles',not w.canvas.tracking_regions)
-    w.live=False;w.new_session();check('new session keeps explicit pins but clears matches',{item_key(i) for i in w.tracked}=={item_key(i) for i in saved} and not w.canvas.tracking_regions and not w.ai_choices.buttons)
+    w.live=False;w.reset_capture()
+    check('capture pause preserves current session tracking',{item_key(i) for i in w.tracked}=={item_key(i) for i in saved})
+    w.open_tracking();events();dialog=w.tracking_dialog
+    check('manual dialog has current selections before reset',bool(dialog.pins.buttons) and any(i.checkState()==Qt.CheckState.Checked for i in dialog.rows))
+    w.navigate('home');events()
+    next(b for b in w.home_content.findChildren(QPushButton) if b.text()=='新对局').click();events()
+    check('new session button clears both operator and equipment tracking',not w.tracked and not w.storage.tracking)
+    check('empty tracking persists after storage reload',Storage().tracking==[])
+    check('all pinned lists are empty',not any(p.buttons for p in (w.home_pins,w.ai_pins,w.overlay.tracking_pins,dialog.pins)))
+    check('manual selections are cleared without toggling them back',all(i.checkState()==Qt.CheckState.Unchecked for i in dialog.rows) and not w.tracked)
+    check('new session clears all shop matching state',not w.canvas.tracking_regions and not w.shop_watch.stable and not w.shop_watch.previous and not w.shop_highlight.matches and not w.shop_highlight.isVisible())
+    check('new session clears old recommendations',not w.ai_choices.buttons and w.ai_result is None)
+    # A late result from the old session must not bring old tracking back.
+    previous_session=fingerprint(w.store.state);w.toggle_tracking(entries[0]);w.toggle_tracking(entries[3])
+    w.new_session();w.receive_recognition(copy.deepcopy(result),previous_session);events()
+    check('late old shop observation cannot restore cleared pins',not w.tracked and not w.canvas.tracking_regions and Storage().tracking==[])
+    # Automatic round-one detection uses the same reset path.
+    w.toggle_tracking(entries[0]);w.toggle_tracking(entries[3]);w.store.state.update(round=8,phase='整备')
+    old_session=w.store.state['session_id'];w.live=True;w.settings['auto_apply']=True;w.gate.reset()
+    next_round={'time':time.time(),'elapsed_ms':1,'mode':'auto','fields':[
+        {'key':key,'value':value,'label':str(value),'raw':str(value),'method':'fixture','confidence':.99}
+        for key,value in [('round',1),('phase','整备')]]}
+    for _ in range(w.settings['stable_frames']):w.receive_recognition(copy.deepcopy(next_round),fingerprint(w.store.state))
+    check('automatic new round also clears tracking',w.store.state['session_id']!=old_session and not w.tracked and Storage().tracking==[])
+    w.live=False;w.toggle_tracking(entries[0]);w.toggle_tracking(entries[3]);w.store.state.update(round=8,gold=12,target='谢拉格',route_lock='test-route')
+    w.ai_result={'goal':'旧建议'};old_session=w.store.state['session_id'];settings=copy.deepcopy(w.settings)
+    w.navigate('catalog');page=w.stack.currentIndex();w.overlay.resize(340,720);w.show_overlay();events()
+    check('overlay reset button fits narrow terminal',w.overlay.new_session_button.isVisible() and w.overlay.new_session_button.fontMetrics().horizontalAdvance(w.overlay.new_session_button.text())<w.overlay.new_session_button.width()-20)
+    w.overlay.grab().save(str(OUT/'overlay-new-session.png'))
+    w.overlay.new_session_button.click();events()
+    check('overlay button clears session and tracking in one click',w.store.state['session_id']!=old_session and not w.tracked and w.store.state['round'] is None and w.store.state['gold'] is None and not w.store.state['route_lock'] and not w.ai_result)
+    check('overlay reset keeps terminal open and main page unchanged',w.overlay.isVisible() and w.stack.currentIndex()==page)
+    check('overlay reset preserves API and recognition settings',w.settings==settings)
+    check('overlay reset refreshes manual selections and persistence',not dialog.pins.buttons and all(i.checkState()==Qt.CheckState.Unchecked for i in dialog.rows) and Storage().tracking==[])
+    dialog.accept();events()
 finally:
     (OUT/'report.json').write_text(json.dumps({'version':__version__,'passed':all(c['passed'] for c in checks),'checks':checks,'scope':'Offscreen controls, saved game frames and mocked native geometry/pixel polling; no live desktop or API used'},ensure_ascii=False,indent=2),'utf8')
     w.closing=True;w.hotkeys.clear();w.timer.stop();w.shop_highlight.hide();w.overlay.hide();w.floating.hide();w.tray.hide();w.close()
